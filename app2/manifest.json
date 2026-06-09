@@ -1,0 +1,36 @@
+{
+  "name": "Climb Advisor",
+  "version": "0.1",
+  "author": "Bike AI Lab",
+  "description": "Live run / power-hike / poles advice on climbs, from gradient + HR.",
+  "type": "feature",
+  "usage": "workout",
+  "modificationTime": 1749427200,
+  "template": [{ "name": "t.html", "displays": ["n", "o", "q"] }],
+  "in": [
+    { "name": "distance", "source": "/Activity/Current/Distance", "type": "subscribe" },
+    { "name": "altitude", "source": "/Fusion/Altitude", "type": "subscribe" },
+    { "name": "hr", "source": "Activity/Move/-1/HeartRate/Current", "type": "subscribe" },
+    { "name": "ascent", "source": "/Fusion/Altitude/Ascent", "type": "subscribe" },
+    { "name": "navState", "source": "/Navigation/State", "type": "subscribe" },
+    { "name": "remainAscent", "source": "Navigation/Routes/NavigatedRoute/RemainAscent", "type": "subscribe" }
+  ],
+  "out": [
+    { "name": "mode", "shownName": "Advice" },
+    { "name": "gradePct", "shownName": "Grade %", "log": true },
+    { "name": "hrBpm", "shownName": "HR bpm" },
+    { "name": "targetMax", "shownName": "HR ceiling" },
+    { "name": "poles" },
+    { "name": "remainAsc", "shownName": "Remaining ascent m" }
+  ],
+  "settings": [
+    { "shownName": "VO2max [ml/kg/min]", "path": "vo2max", "type": "int", "min": 20, "max": 90 },
+    { "shownName": "Threshold HR [bpm]", "path": "thresholdHR", "type": "int", "min": 100, "max": 210 },
+    { "shownName": "Max HR [bpm]", "path": "maxHR", "type": "int", "min": 120, "max": 230 },
+    { "shownName": "Resting HR [bpm]", "path": "restHR", "type": "int", "min": 30, "max": 90 },
+    { "shownName": "Body mass [kg]", "path": "bodyMass", "type": "int", "min": 35, "max": 140 },
+    { "shownName": "Experience", "path": "experience", "type": "enum", "values": ["novice", "intermediate", "elite"] },
+    { "shownName": "Goal", "path": "goal", "type": "enum", "values": ["training", "race"] },
+    { "shownName": "Carrying poles", "path": "hasPoles", "type": "boolean" }
+  ]
+}
