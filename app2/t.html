@@ -1,0 +1,33 @@
+<!-- SuuntoPlus Sports App view (custom uiView DSL, not standard HTML). Binds the outputs
+     set in main.js (mapped to Zapp/{zapp_index}/Output/<name>). Compact data screen:
+     big advice word + grade, with HR-vs-ceiling and remaining ascent below. -->
+<uiView>
+  <column>
+    <!-- primary: the advice word (RUN / POWER_HIKE / HIKE) -->
+    <eval class="sp-d-m" input="Zapp/{zapp_index}/Output/mode"
+          outputFormat="script x => x === 'POWER_HIKE' ? 'P-HIKE' : x" default="--" />
+
+    <!-- grade under-foot, % -->
+    <row>
+      <eval class="sp-d-s" input="Zapp/{zapp_index}/Output/gradePct"
+            outputFormat="auto" default="0" />
+      <text class="sp-t-m">%</text>
+    </row>
+
+    <!-- HR now vs the baked ceiling -->
+    <row>
+      <eval class="sp-d-s" input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="auto" default="--" />
+      <text class="sp-t-m">/</text>
+      <eval class="sp-t-m" input="Zapp/{zapp_index}/Output/targetMax" outputFormat="auto" default="--" />
+      <text class="sp-t-m">bpm</text>
+    </row>
+
+    <!-- poles flag + remaining route ascent (when navigating a route; -1 = not on route) -->
+    <row>
+      <eval class="sp-t-m" input="Zapp/{zapp_index}/Output/poles"
+            outputFormat="keyValue 0=|1=+POLES" default="" />
+      <eval class="sp-t-m" input="Zapp/{zapp_index}/Output/remainAsc"
+            outputFormat="script x => x < 0 ? '' : ('^' + x + 'm')" default="" />
+    </row>
+  </column>
+</uiView>
