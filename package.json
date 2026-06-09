@@ -14,7 +14,6 @@
   "dependencies": {
     "fastify": "^4.28.1",
     "@fastify/formbody": "^7.4.0",
-    "@fastify/static": "^7.0.4",
     "better-sqlite3": "^11.3.0",
     "fast-xml-parser": "^4.5.0",
     "jszip": "^3.10.1",

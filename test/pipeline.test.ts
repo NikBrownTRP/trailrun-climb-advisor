@@ -22,4 +22,17 @@ describe("generateGuideFromGpx", () => {
     await expect(generateGuideFromGpx(noEle, profile, { routeId: "r", routeName: "n" }))
       .rejects.toThrow(/elevation/i);
   });
+
+  it("throws a clear error for a flat route with no climbs", async () => {
+    const flat = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="t" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>
+<trkpt lat="47.2700" lon="11.4000"><ele>600</ele></trkpt>
+<trkpt lat="47.2710" lon="11.4000"><ele>600.2</ele></trkpt>
+<trkpt lat="47.2720" lon="11.4000"><ele>600.1</ele></trkpt>
+<trkpt lat="47.2730" lon="11.4000"><ele>600.3</ele></trkpt>
+<trkpt lat="47.2740" lon="11.4000"><ele>600.2</ele></trkpt>
+</trkseg></trk></gpx>`;
+    await expect(generateGuideFromGpx(flat, profile, { routeId: "r", routeName: "n" }))
+      .rejects.toThrow(/no climbs/i);
+  });
 });

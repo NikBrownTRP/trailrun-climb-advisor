@@ -29,7 +29,15 @@ export function buildApp(deps: ServerDeps) {
     const code = req.query.code;
     if (!code) return reply.code(400).send("missing code");
     const tok = await exchangeCode(deps.oauth, code);
-    const userId = deps.store.upsertUser(tok.user ?? "unknown");
+    // NOTE (v1): the OAuth `state` param is generated in /oauth/start but not verified here.
+    // CSRF-hardening the callback requires server-side state storage; deferred until the
+    // Suunto OAuth endpoints/scopes are confirmed ([VERIFY], see suunto/constants.ts).
+    if (!tok.user) {
+      return reply.code(500).send(
+        "OAuth token response had no user id — verify the field name on TokenResponse in src/suunto/oauth.ts ([VERIFY]).",
+      );
+    }
+    const userId = deps.store.upsertUser(tok.user);
     deps.store.setTokens(userId, {
       accessToken: tok.access_token, refreshToken: tok.refresh_token,
       expiresAt: new Date(Date.now() + tok.expires_in * 1000).toISOString(),
@@ -45,6 +53,9 @@ export function buildApp(deps: ServerDeps) {
   app.post<{ Body: Record<string, string> }>("/profile", async (req, reply) => {
     const b = req.body;
     const userId = Number(b.user);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return reply.code(400).send("invalid or missing user id");
+    }
     const profile: Profile = {
       vo2max: Number(b.vo2max), thresholdHR: Number(b.thresholdHR), maxHR: Number(b.maxHR),
       restHR: Number(b.restHR), bodyMass: Number(b.bodyMass),
@@ -60,6 +71,9 @@ export function buildApp(deps: ServerDeps) {
     "/webhook/route",
     async (req, reply) => {
       const userId = Number(req.body.userId);
+      if (!Number.isInteger(userId) || userId <= 0) {
+        return reply.code(400).send("invalid or missing userId");
+      }
       const routeId = req.body.route?.id;
       const routeName = req.body.route?.name ?? "Route";
       if (!routeId) return reply.code(400).send("missing route id");
@@ -69,11 +83,16 @@ export function buildApp(deps: ServerDeps) {
       if (!profile || !tokens) return reply.code(409).send("user not set up");
 
       const auth = { accessToken: tokens.accessToken, subscriptionKey: deps.subscriptionKey };
-      const gpx = await exportRouteGpx(auth, routeId);
-      const { guide, zip } = await generateGuideFromGpx(gpx, profile, { routeId, routeName });
-      await upsertGuideForRoute(auth, routeId, zip);
-      deps.store.logGuide(userId, routeId, guide.externalId!);
-      reply.send({ ok: true, climbs: guide.steps.length / 2 });
+      try {
+        const gpx = await exportRouteGpx(auth, routeId);
+        const { guide, zip } = await generateGuideFromGpx(gpx, profile, { routeId, routeName });
+        await upsertGuideForRoute(auth, routeId, zip);
+        deps.store.logGuide(userId, routeId, guide.externalId!);
+        return reply.send({ ok: true, climbs: guide.steps.length / 2 });
+      } catch (err) {
+        req.log.error({ err, routeId }, "guide generation failed");
+        return reply.code(500).send({ ok: false, error: (err as Error).message });
+      }
     },
   );
 

@@ -23,6 +23,9 @@ export async function generateGuideFromGpx(
 ): Promise<PipelineResult> {
   const points = parseGpx(gpxText); // throws on missing elevation (SPEC §5.4)
   let climbs = segmentClimbs(points, segOpts);
+  if (climbs.length === 0) {
+    throw new Error("No climbs found in this route — nothing to advise on (flat route, or all climbs below the segmentation thresholds).");
+  }
 
   // Cap steps (2 per climb) to the watch limit; drop the smallest climbs if needed (SPEC §5.4).
   const maxClimbs = Math.floor(MAX_STEPS / 2);
