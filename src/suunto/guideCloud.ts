@@ -1,9 +1,9 @@
 import { CLOUD_API_BASE } from "./constants";
 import type { ApiAuth } from "./routes";
 
-// [VERIFY] exact endpoint paths + whether create/update is ZIP multipart or JSON,
-// from SuuntoplusGuideCloudAPI.pdf. Shapes below are best-effort per SPEC §3.2.
-const GUIDES_PATH = "/v2/suuntoplus/guides";
+// CONFIRMED create endpoint (forum.suunto.com/topic/11971). list/update/delete paths
+// are INFERRED (the GuideCloud PDF could not be text-extracted) — [VERIFY] before relying.
+const GUIDES_PATH = "/v2/guides/files";
 
 function headers(auth: ApiAuth): Record<string, string> {
   return {
@@ -21,9 +21,11 @@ export async function listGuides(auth: ApiAuth): Promise<GuideRef[]> {
 }
 
 async function uploadZip(auth: ApiAuth, url: string, method: "POST" | "PUT", zip: Buffer): Promise<GuideRef> {
-  const form = new FormData();
-  form.append("guide", new Blob([new Uint8Array(zip)], { type: "application/zip" }), "guide.zip");
-  const res = await fetch(url, { method, headers: headers(auth), body: form });
+  const res = await fetch(url, {
+    method,
+    headers: { ...headers(auth), "Content-Type": "application/zip" },
+    body: new Uint8Array(zip),
+  });
   if (!res.ok) throw new Error(`Guide ${method} failed: ${res.status} ${await res.text()}`);
   return (await res.json()) as GuideRef;
 }

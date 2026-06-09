@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import formbody from "@fastify/formbody";
 import { readFileSync } from "node:fs";
 import { Store } from "../db/store";
-import { authorizeUrl, exchangeCode, type OAuthEnv } from "../suunto/oauth";
+import { authorizeUrl, exchangeCode, userFromAccessToken, type OAuthEnv } from "../suunto/oauth";
 import { exportRouteGpx } from "../suunto/routes";
 import { upsertGuideForRoute } from "../suunto/guideCloud";
 import { generateGuideFromGpx } from "../pipeline";
@@ -30,14 +30,14 @@ export function buildApp(deps: ServerDeps) {
     if (!code) return reply.code(400).send("missing code");
     const tok = await exchangeCode(deps.oauth, code);
     // NOTE (v1): the OAuth `state` param is generated in /oauth/start but not verified here.
-    // CSRF-hardening the callback requires server-side state storage; deferred until the
-    // Suunto OAuth endpoints/scopes are confirmed ([VERIFY], see suunto/constants.ts).
-    if (!tok.user) {
-      return reply.code(500).send(
-        "OAuth token response had no user id — verify the field name on TokenResponse in src/suunto/oauth.ts ([VERIFY]).",
-      );
+    // CSRF-hardening the callback requires server-side state storage; deferred to a follow-up.
+    let suuntoUser: string;
+    try {
+      suuntoUser = userFromAccessToken(tok.access_token); // `user` claim inside the JWT
+    } catch (err) {
+      return reply.code(502).send("Could not read user from Suunto access token: " + (err as Error).message);
     }
-    const userId = deps.store.upsertUser(tok.user);
+    const userId = deps.store.upsertUser(suuntoUser);
     deps.store.setTokens(userId, {
       accessToken: tok.access_token, refreshToken: tok.refresh_token,
       expiresAt: new Date(Date.now() + tok.expires_in * 1000).toISOString(),
@@ -66,14 +66,14 @@ export function buildApp(deps: ServerDeps) {
     reply.type("text/html").send("<p>Profile saved. Plan a route in the Suunto app — your guide will generate automatically.</p>");
   });
 
-  // --- Route webhook ([VERIFY] payload shape, SPEC §3.1, §5.2.3) ---
-  app.post<{ Body: { userId?: string; route?: { id?: string; name?: string } } }>(
+  // --- Route webhook ---
+  app.post<{ Body: { type?: string; username?: string; route?: { id?: string; name?: string } } }>(
     "/webhook/route",
     async (req, reply) => {
-      const userId = Number(req.body.userId);
-      if (!Number.isInteger(userId) || userId <= 0) {
-        return reply.code(400).send("invalid or missing userId");
-      }
+      const username = req.body.username;
+      if (!username) return reply.code(400).send("missing username");
+      const userId = deps.store.getUserIdBySuuntoId(username);
+      if (!userId) return reply.code(409).send("user not set up");
       const routeId = req.body.route?.id;
       const routeName = req.body.route?.name ?? "Route";
       if (!routeId) return reply.code(400).send("missing route id");

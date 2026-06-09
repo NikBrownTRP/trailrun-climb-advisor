@@ -24,6 +24,14 @@ export class Store {
     return row.id;
   }
 
+  /** Resolve a local user id from the Suunto username, or undefined if unknown. */
+  getUserIdBySuuntoId(suuntoUserId: string): number | undefined {
+    const r = this.db
+      .prepare(`SELECT id FROM users WHERE suunto_user_id = ?`)
+      .get(suuntoUserId) as { id: number } | undefined;
+    return r?.id;
+  }
+
   setTokens(userId: number, t: Tokens): void {
     this.db.prepare(
       `INSERT INTO tokens(user_id, access_token, refresh_token, expires_at)
