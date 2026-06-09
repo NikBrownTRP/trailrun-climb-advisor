@@ -5,6 +5,8 @@ import { parseGpx } from "../src/gpx/parse";
 import { segmentClimbs } from "../src/gpx/segment";
 import { readFileSync } from "node:fs";
 import type { Profile } from "../src/core/types";
+import { packageGuideZip } from "../src/guide/zip";
+import JSZip from "jszip";
 
 const profile: Profile = {
   vo2max: 55, thresholdHR: 165, maxHR: 188, restHR: 50, bodyMass: 70,
@@ -32,5 +34,17 @@ describe("buildGuide", () => {
     const approach = guide.steps[0] as any;
     expect(approach.notification.title.length).toBeLessThanOrEqual(13);
     expect(approach.notification.text.length).toBeLessThanOrEqual(54);
+  });
+});
+
+describe("packageGuideZip", () => {
+  it("produces a ZIP containing guide.json and a 300x300 icon.png", async () => {
+    const guide = buildGuide(climbs, profile, { routeId: "r", routeName: "n" });
+    const buf = await packageGuideZip(guide);
+    const zip = await JSZip.loadAsync(buf);
+    expect(zip.file("guide.json")).not.toBeNull();
+    expect(zip.file("icon.png")).not.toBeNull();
+    const json = JSON.parse(await zip.file("guide.json")!.async("string"));
+    expect(json.type).toBe("sequence");
   });
 });
