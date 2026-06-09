@@ -182,7 +182,7 @@ function evaluate(input, output) {
     state = candidate;
   }
 
-  output.mode = state;
+  output.mode = state === "POWER_HIKE" ? "P-HIKE" : state; // short label for the watch screen
   output.gradePct = Math.round(grade * 100);
   output.hrBpm = hrBpm;
   output.targetMax = rec.targetHR.max;
