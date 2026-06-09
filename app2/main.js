@@ -191,6 +191,7 @@ function evaluate(input, output) {
 }
 
 // MANDATORY callback — the app screen will not render without it.
+// The template id is the html filename WITHOUT extension ("t.html" -> "t").
 function getUserInterface(input, output) {
-  return { template: "t.html" };
+  return { template: "t" };
 }
