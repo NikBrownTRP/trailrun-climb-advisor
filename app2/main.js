@@ -2,20 +2,98 @@
 // ES5 only (Duktape). Pairs with the Guide (App 1): the Guide bakes lookahead advice;
 // this app reacts to the gradient under-foot + live HR in real time (SPEC §6).
 //
-// Resource paths and accessor semantics are from docs/suunto-api-findings.md Part B.
-// Items marked VERIFY-HW must be confirmed in the simulator / on a real watch.
+// SuuntoPlus apps are single-file: main.js is the ONLY script the build includes
+// (no import/require). So the decision core is INLINED below. It is the on-watch twin
+// of the backend's src/core (TypeScript) and MUST stay behaviorally identical so the
+// live app and the baked Guide give the same advice (SPEC §4). That parity is locked by
+// ../test/app2-core-parity.test.ts, which evaluates THIS file and runs advise() against
+// the backend core across a 180-case matrix.
 //
-// Depends on app2/src/core.js (advise, CONFIG). The SuuntoPlus build concatenates app
-// sources; advise()/CONFIG are in scope. Helpers use `var fn = function(){}` because
-// top-level `function` names are reserved for lifecycle callbacks.
+// ES5 constraints (docs/suunto-api-findings.md Part B): no const/let, no arrow functions,
+// no `**` (use Math.pow), no template literals, no default params. Helpers are
+// `var fn = function(){}` because top-level `function` names are reserved for the
+// SuuntoPlus lifecycle callbacks (onLoad / evaluate / getUserInterface / ...).
 
-// ---- tunables for the LIVE layer (not in the shared core) ----
+// ===================== climb-advisor-core (inlined ES5 twin) =====================
+
+var CONFIG = {
+  G_RUN_MAX: 0.12,
+  G_HIKE_MAX: 0.22,
+  G_POLES: 0.25,
+  V_CROSS: 0.78,
+  L_LONG: 400,
+  P_SUS_FRACTION: { training: 0.85, race: 0.92 },
+  EXPERIENCE_SHIFT: { novice: 0.0, intermediate: 0.02, elite: 0.04 },
+  J_PER_ML_O2: 20.9
+};
+
+// Minetti AE et al. (2002) net cost of running, J/kg/m. [VERIFY coefficients] — shape model.
+var costOfRunning = function (i) {
+  return 155.4 * Math.pow(i, 5) - 30.4 * Math.pow(i, 4) - 43.3 * Math.pow(i, 3) +
+         46.3 * Math.pow(i, 2) + 19.5 * i + 3.6;
+};
+
+var sustainablePowerWkg = function (profile, cfg) {
+  return (profile.vo2max * cfg.J_PER_ML_O2 / 60) * cfg.P_SUS_FRACTION[profile.goal];
+};
+
+var vRun = function (g, profile, cfg) {
+  var cr = costOfRunning(g);
+  if (cr <= 0) return Infinity; // flat/downhill: running not cost-limited
+  return sustainablePowerWkg(profile, cfg) / cr;
+};
+
+var fitnessShift = function (profile, cfg) {
+  var expShift = cfg.EXPERIENCE_SHIFT[profile.experience];
+  var vo2Shift = Math.max(-0.02, Math.min(0.02, (profile.vo2max - 50) * 0.001));
+  return expShift + vo2Shift;
+};
+
+var fatigue = function (seg, profile) {
+  var ascentTerm = Math.min(0.04, seg.cumulativeAscentBefore / 1000 * 0.02);
+  var goalFactor = profile.goal === "race" ? 0.6 : 1.0;
+  return ascentTerm * goalFactor;
+};
+
+var hrCeiling = function (profile, seg) {
+  var thr = profile.thresholdHR;
+  if (profile.goal === "race") {
+    var shortClimb = seg.length < 400;
+    var max = Math.min(profile.maxHR, thr + (shortClimb ? 12 : 5));
+    return { min: thr - 8, max: max };
+  }
+  return { min: thr - 20, max: thr - 5 };
+};
+
+// Identical banding to src/core/advice.ts advise(). seg = {gradient, length,
+// cumulativeAscentBefore}. Returns { mode, poles, targetHR:{min,max} }.
+var advise = function (seg, profile, cfg) {
+  if (!cfg) cfg = CONFIG;
+  var g = seg.gradient;
+  var shift = fitnessShift(profile, cfg);
+  var fat = fatigue(seg, profile);
+
+  var gRun = cfg.G_RUN_MAX + shift - fat;
+  var gHike = cfg.G_HIKE_MAX + shift - fat;
+  var gPoles = cfg.G_POLES + shift;
+
+  var mode;
+  if (g < gRun && vRun(g, profile, cfg) >= cfg.V_CROSS) mode = "RUN";
+  else if (g < gHike) mode = "POWER_HIKE";
+  else mode = "HIKE";
+
+  var poles = profile.hasPoles && (g >= gPoles || (mode === "HIKE" && seg.length > cfg.L_LONG));
+
+  return { mode: mode, poles: poles, targetHR: hrCeiling(profile, seg) };
+};
+
+// ===================== live layer (watch-only, not in the shared core) =====================
+
 var GRADE_WINDOW_M = 30; // smooth grade over the last ~30 m of horizontal travel
 var T_DWELL = 4; // s a new mode must persist before we switch the displayed advice
 var T_OVER = 20; // s HR must stay over threshold before biasing toward hiking
 var MIN_DDIST = 1.0; // m, clamp to avoid divide-by-near-zero when slow/stopped
 
-// ---- live state ----
 var profile;
 var samples; // ring of { dist: m, alt: m } over the grade window
 var state; // current displayed mode: "RUN" | "POWER_HIKE" | "HIKE"
@@ -29,9 +107,9 @@ var num = function (v, dflt) {
   return isFinite(n) ? n : dflt;
 };
 
-// Build the athlete profile from settings (edited in the Suunto mobile app, read via
-// localStorage by the manifest `settings[].path`). Falls back to sane defaults so the
-// app still runs in the simulator before settings are configured.
+// Build the athlete profile from settings (edited in the Suunto mobile app, stored in
+// data.json, read via localStorage by the manifest `settings[].path`). Falls back to
+// sane defaults so the app still runs in the simulator before settings are configured.
 var loadProfile = function () {
   return {
     vo2max: num(localStorage.getItem("vo2max"), 50),
@@ -48,7 +126,6 @@ var loadProfile = function () {
 // Smoothed grade (fraction) over the trailing GRADE_WINDOW_M of horizontal distance.
 var smoothedGrade = function (dist, alt) {
   samples.push({ dist: dist, alt: alt });
-  // drop samples older than the window
   while (samples.length > 1 && (dist - samples[0].dist) > GRADE_WINDOW_M) samples.shift();
   var a = samples[0];
   var dd = dist - a.dist;
@@ -66,8 +143,6 @@ function onLoad(input, output) {
   ticks = 0;
 }
 
-// Re-read settings if the athlete edited them mid-session is not supported on-watch;
-// profile is fixed at load (matches the Guide's bake-once model).
 function evaluate(input, output) {
   ticks++;
 
@@ -81,14 +156,13 @@ function evaluate(input, output) {
 
   var grade = smoothedGrade(dist, alt);
 
-  // Live "segment": length is unknown under-foot. Use remaining route distance is also
-  // unavailable as a clean number here, so use a long sentinel so the core's long-hike
-  // poles rule (length > L_LONG) can engage on sustained steep terrain; race short-climb
-  // HR easing intentionally won't trigger live (we lack a per-climb length).
+  // Live "segment": length under-foot is unknown, so use a long sentinel — lets the core's
+  // long-hike poles rule engage on sustained steep terrain; race short-climb HR easing
+  // intentionally won't trigger live (no per-climb length available).
   var seg = { gradient: grade, length: 9999, cumulativeAscentBefore: ascent };
   var rec = advise(seg, profile, CONFIG);
 
-  // HR override (SPEC §6.4): if HR sits above threshold while we're saying RUN, bias to hike.
+  // HR override (SPEC §6.4): HR sustained above threshold while saying RUN → bias to hike.
   if (hrBpm > profile.thresholdHR) {
     if (hrOverSince < 0) hrOverSince = ticks;
   } else {
@@ -98,7 +172,7 @@ function evaluate(input, output) {
     rec.mode = "POWER_HIKE";
   }
 
-  // Hysteresis + dwell (SPEC §6.4): only switch the shown advice after the new mode
+  // Hysteresis + dwell (SPEC §6.4): switch the shown advice only after the new mode
   // persists for T_DWELL seconds — stops flapping at band edges on rolling terrain.
   if (rec.mode !== candidate) {
     candidate = rec.mode;
@@ -108,7 +182,6 @@ function evaluate(input, output) {
     state = candidate;
   }
 
-  // outputs (bound in t.html). gradePct signed; mode is the dwell-smoothed state.
   output.mode = state;
   output.gradePct = Math.round(grade * 100);
   output.hrBpm = hrBpm;

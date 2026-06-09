@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import { advise as tsAdvise } from "../src/core/advice";
 import type { Profile, Segment } from "../src/core/types";
 
-// Load the ES5 watch core by evaluating its source in a bare function scope — no module
-// system, mirroring the Duktape runtime. This both proves the file is valid ES5-ish JS
-// runnable without imports AND lets us compare its advise() to the backend's.
-const src = readFileSync("app2/src/core.js", "utf8");
+// Load the watch app's main.js by evaluating its source in a bare function scope — no
+// module system, mirroring the Duktape runtime. The core is inlined in main.js (SuuntoPlus
+// apps are single-file). Evaluating it defines advise()/CONFIG and the lifecycle functions
+// without running them; we return advise() and compare it to the backend's. This both
+// proves main.js is valid module-free ES5 AND locks the watch↔backend parity (SPEC §4).
+const src = readFileSync("app2/main.js", "utf8");
 type SegLite = { gradient: number; length: number; cumulativeAscentBefore: number };
 type Adv = { mode: string; poles: boolean; targetHR: { min: number; max: number } };
 const watchAdvise = new Function(src + "\n;return advise;")() as (

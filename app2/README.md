@@ -9,24 +9,26 @@ Guide (App 1): the Guide bakes route lookahead; this app reacts to live physiolo
 
 ## Files
 
+SuuntoPlus apps are a **flat, single-script folder** — these four files, no subdirectories:
+
 | File | Role |
 |---|---|
 | `manifest.json` | App metadata, declared input resources, outputs, user settings |
-| `main.js` | Lifecycle (`onLoad`, `evaluate` @1 Hz, `getUserInterface`) — gradient smoothing, advice, HR override, hysteresis |
-| `src/core.js` | **ES5 port of the backend decision core** — kept byte-for-byte behavior-identical to `../src/core` (locked by `../test/app2-core-parity.test.ts`) |
+| `main.js` | **The only script.** Lifecycle (`onLoad`, `evaluate` @1 Hz, `getUserInterface`) + the **inlined ES5 decision core** (the build bundles only `main.js`, so the core lives here) |
 | `t.html` | Watch data screen (SuuntoPlus `uiView` DSL) |
+| `data.json` | Default settings so the simulator runs before the mobile app configures them |
 
 ## The core parity guarantee
 
-`src/core.js` is the on-watch twin of the TypeScript backend core. It is **ES5** (Duktape:
-no `let`/`const`/arrow/`**`/template-literals). `../test/app2-core-parity.test.ts` evaluates
-this file module-free (as Duktape would) and asserts its `advise()` matches the backend's
-across a 180-case grade × profile × goal × length × ascent matrix — so the live app and the
-baked Guide can never silently diverge (the SPEC §4 requirement). Run it with `npm test`
-from the repo root.
+The decision core inlined at the top of `main.js` is the on-watch twin of the TypeScript
+backend core. It is **ES5** (Duktape: no `let`/`const`/arrow/`**`/template-literals).
+`../test/app2-core-parity.test.ts` evaluates `main.js` module-free (as Duktape would) and
+asserts its `advise()` matches the backend's across a 180-case grade × profile × goal ×
+length × ascent matrix — so the live app and the baked Guide can never silently diverge
+(the SPEC §4 requirement). Run it with `npm test` from the repo root.
 
-If you change the science in `../src/core`, port the same change here and the parity test
-will confirm it.
+If you change the science in `../src/core`, port the same change into `main.js`'s inlined
+core and the parity test will confirm it.
 
 ## Open & run in the SuuntoPlus Editor
 

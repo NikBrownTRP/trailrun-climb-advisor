@@ -1,0 +1,10 @@
+{
+  "vo2max": "55",
+  "thresholdHR": "165",
+  "maxHR": "188",
+  "restHR": "50",
+  "bodyMass": "70",
+  "experience": "intermediate",
+  "goal": "training",
+  "hasPoles": "true"
+}
