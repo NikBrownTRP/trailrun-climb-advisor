@@ -23,9 +23,27 @@ export function buildGuide(climbs: Segment[], profile: Profile, opts: BuildOpts)
 
   climbs.forEach((climb, idx) => {
     const adv = advise(climb, profile);
-    const approachAt = Math.max(0, climb.distanceIntoRoute - lead);
 
-    // Approach/cruise step: waits until ~lead metres before the climb, then notifies.
+    // Approach/cruise step: waits until the climb start, then notifies.
+    const approachTransitions: Array<{ condition: any; stepId?: string }> = [];
+    if (climb.startLat != null && climb.startLon != null) {
+      // primary: location at the climb start (distance = min distance into step before matching)
+      approachTransitions.push({
+        condition: {
+          type: "location",
+          latitude: climb.startLat,
+          longitude: climb.startLon,
+          distance: lead,
+        },
+        stepId: `climb-${idx}`,
+      });
+    }
+    // fallback: absolute distance into workout, at the climb start
+    approachTransitions.push({
+      condition: { type: "distance", value: climb.distanceIntoRoute },
+      stepId: `climb-${idx}`,
+    });
+
     steps.push({
       type: "fields",
       id: `approach-${idx}`,
@@ -34,19 +52,7 @@ export function buildGuide(climbs: Segment[], profile: Profile, opts: BuildOpts)
         title: notifTitle(climb),
         text: notifText(climb, adv),
       },
-      transitions: [
-        // primary: location at the climb start; fallback: absolute distance into workout
-        {
-          condition: {
-            type: "location",
-            latitude: climb.startLat,
-            longitude: climb.startLon,
-            distance: lead,
-          },
-          stepId: `climb-${idx}`,
-        },
-        { condition: { type: "distance", value: climb.distanceIntoRoute }, stepId: `climb-${idx}` },
-      ],
+      transitions: approachTransitions,
     });
 
     // During-climb step: HR gauge + countdown + mode reminder.
