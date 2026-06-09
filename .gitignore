@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.db
 .env
+guide.zip
+*.guide.json
