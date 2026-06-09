@@ -25,3 +25,58 @@ describe("energetics", () => {
     expect(vRun(0.05, elite, DEFAULT_CONFIG)).toBeGreaterThan(vRun(0.2, elite, DEFAULT_CONFIG));
   });
 });
+
+import { advise } from "../src/core/advice";
+import type { Segment } from "../src/core/types";
+
+const novice: Profile = {
+  vo2max: 42, thresholdHR: 160, maxHR: 185, restHR: 60, bodyMass: 80,
+  hasPoles: true, experience: "novice", goal: "training",
+};
+
+function seg(gradient: number, length = 600): Segment {
+  return {
+    gradient, length, vertical: gradient * length,
+    cumulativeAscentBefore: 0, distanceIntoRoute: 1000,
+  };
+}
+
+describe("ADVICE golden cases (SPEC §9)", () => {
+  it("gentle 5% grade: everyone runs", () => {
+    expect(advise(seg(0.05), novice).mode).toBe("RUN");
+    expect(advise(seg(0.05), elite).mode).toBe("RUN");
+  });
+
+  it("12% grade: novice power-hikes, elite runs (fitness shift)", () => {
+    expect(advise(seg(0.12), novice).mode).toBe("POWER_HIKE");
+    expect(advise(seg(0.12), elite).mode).toBe("RUN");
+  });
+
+  it("18% grade: power-hike for all", () => {
+    expect(advise(seg(0.18), novice).mode).toBe("POWER_HIKE");
+    expect(advise(seg(0.18), elite).mode).toBe("POWER_HIKE");
+  });
+
+  it("25% grade: novice hikes, elite still power-hikes", () => {
+    expect(advise(seg(0.25), novice).mode).toBe("HIKE");
+    expect(advise(seg(0.25), elite).mode).toBe("POWER_HIKE");
+  });
+
+  it("35% grade: everyone hikes with poles", () => {
+    expect(advise(seg(0.35), novice).mode).toBe("HIKE");
+    expect(advise(seg(0.35), elite).mode).toBe("HIKE");
+    expect(advise(seg(0.35), novice).poles).toBe(true);
+  });
+
+  it("poles engage at/above G_POLES when the runner carries them", () => {
+    expect(advise(seg(0.26), novice).poles).toBe(true);
+    const noPoles = { ...novice, hasPoles: false };
+    expect(advise(seg(0.26), noPoles).poles).toBe(false);
+  });
+
+  it("race targetHR ceiling is higher than training", () => {
+    const t = advise(seg(0.18), { ...elite, goal: "training" }).targetHR.max;
+    const r = advise(seg(0.18), { ...elite, goal: "race" }).targetHR.max;
+    expect(r).toBeGreaterThan(t);
+  });
+});
