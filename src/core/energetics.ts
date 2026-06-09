@@ -25,5 +25,8 @@ export function sustainablePowerWkg(profile: Profile, cfg: CoreConfig): number {
 
 /** Estimated sustainable uphill RUNNING speed at grade g, m/s (SPEC §4.3 step 2). */
 export function vRun(g: number, profile: Profile, cfg: CoreConfig): number {
-  return sustainablePowerWkg(profile, cfg) / costOfRunning(g);
+  const cr = costOfRunning(g);
+  // Flat/downhill: running is not cost-limited, so report unbounded speed.
+  if (cr <= 0) return Infinity;
+  return sustainablePowerWkg(profile, cfg) / cr;
 }

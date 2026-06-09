@@ -24,7 +24,7 @@ export interface Profile {
   thresholdHR: number;  // bpm
   maxHR: number;        // bpm
   restHR: number;       // bpm
-  bodyMass: number;     // kg
+  bodyMass: number;     // kg — collected for future absolute-power models; unused in current per-kg formulas
   hasPoles: boolean;
   experience: Experience;
   goal: Goal;

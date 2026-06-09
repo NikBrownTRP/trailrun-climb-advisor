@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { costOfRunning, sustainablePowerWkg, vRun } from "../src/core/energetics";
 import { DEFAULT_CONFIG } from "../src/core/config";
 import type { Profile } from "../src/core/types";
+import { advise } from "../src/core/advice";
+import type { Segment } from "../src/core/types";
 
 const elite: Profile = {
   vo2max: 70, thresholdHR: 170, maxHR: 190, restHR: 45, bodyMass: 65,
@@ -25,9 +27,6 @@ describe("energetics", () => {
     expect(vRun(0.05, elite, DEFAULT_CONFIG)).toBeGreaterThan(vRun(0.2, elite, DEFAULT_CONFIG));
   });
 });
-
-import { advise } from "../src/core/advice";
-import type { Segment } from "../src/core/types";
 
 const novice: Profile = {
   vo2max: 42, thresholdHR: 160, maxHR: 185, restHR: 60, bodyMass: 80,
