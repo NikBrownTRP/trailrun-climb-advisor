@@ -4,7 +4,7 @@
   "maxHR": "188",
   "restHR": "50",
   "bodyMass": "70",
-  "experience": "intermediate",
-  "goal": "training",
-  "hasPoles": "true"
+  "experience": "1",
+  "goal": "0",
+  "hasPoles": true
 }

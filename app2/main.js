@@ -107,19 +107,41 @@ var num = function (v, dflt) {
   return isFinite(n) ? n : dflt;
 };
 
-// Build the athlete profile from settings (edited in the Suunto mobile app, stored in
-// data.json, read via localStorage by the manifest `settings[].path`). Falls back to
-// sane defaults so the app still runs in the simulator before settings are configured.
+var EXPERIENCES = ["novice", "intermediate", "elite"]; // enum order = manifest settings.values
+var GOALS = ["training", "race"];
+
+// Safe localStorage read: localStorage may be undefined in the simulator before settings
+// are initialized, so guard it instead of throwing in onLoad (which blanks the screen).
+var lsGet = function (key) {
+  if (typeof localStorage === "undefined" || !localStorage) return null;
+  var v = localStorage.getItem(key);
+  return (v === null || v === undefined || v === "") ? null : v;
+};
+
+// Decode an enum setting. Suunto stores enums as the integer INDEX into the values list
+// (data.json), but accept a literal name too so either form works.
+var enumSetting = function (key, list, dflt) {
+  var v = lsGet(key);
+  if (v === null) return dflt;
+  var i = parseInt(v, 10);
+  if (i >= 0 && i < list.length) return list[i];
+  return list.indexOf(v) >= 0 ? v : dflt;
+};
+
+// Build the athlete profile from settings (edited in the Suunto mobile app, seeded from
+// data.json, read via localStorage by the manifest `settings[].path`). Falls back to sane
+// defaults so the app still runs in the simulator before settings are configured.
 var loadProfile = function () {
+  var poles = lsGet("hasPoles");
   return {
-    vo2max: num(localStorage.getItem("vo2max"), 50),
-    thresholdHR: num(localStorage.getItem("thresholdHR"), 165),
-    maxHR: num(localStorage.getItem("maxHR"), 188),
-    restHR: num(localStorage.getItem("restHR"), 50),
-    bodyMass: num(localStorage.getItem("bodyMass"), 70),
-    hasPoles: localStorage.getItem("hasPoles") === "true" || localStorage.getItem("hasPoles") === "1",
-    experience: localStorage.getItem("experience") || "intermediate",
-    goal: localStorage.getItem("goal") || "training"
+    vo2max: num(lsGet("vo2max"), 50),
+    thresholdHR: num(lsGet("thresholdHR"), 165),
+    maxHR: num(lsGet("maxHR"), 188),
+    restHR: num(lsGet("restHR"), 50),
+    bodyMass: num(lsGet("bodyMass"), 70),
+    hasPoles: poles === "true" || poles === "1" || poles === true,
+    experience: enumSetting("experience", EXPERIENCES, "intermediate"),
+    goal: enumSetting("goal", GOALS, "training")
   };
 };
 
