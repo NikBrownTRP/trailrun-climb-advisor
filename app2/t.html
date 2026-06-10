@@ -1,31 +1,39 @@
-<!-- SuuntoPlus Sports App view. Custom uiView DSL (NOT standard HTML): a single
-     #suuntoplus container with absolutely-positioned <div>s. Layout/fonts come from
-     class names (sp-d-* digits, sp-t-* text, f-num, p-hc = horizontal-centre) + style
-     top:calc(Y% - 50%e). <eval> binds an output (no class on eval — wrap it in a div).
-     Outputs are set in main.js and mapped to Zapp/{zapp_index}/Output/<name>. -->
+<!-- Climb Advisor — live coaching screen (SuuntoPlus uiView DSL).
+     Effort-zone colour: RUN=green, P-HIKE=orange, HIKE=red. The mode word is three
+     overlapping colour-locked evals; only the active mode renders a word (others a space).
+     Steepness shown to 0.1%, heart rate as whole bpm. -->
 <uiView>
   <div id="suuntoplus">
 
-    <!-- primary advice: RUN / P-HIKE / HIKE -->
-    <div class="sp-d-m p-hc" style="top:calc(22% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="auto" default="--" />
+    <!-- steepness (input) — cyan, 0.1% precision -->
+    <div class="sp-d-m f-num p-hc c-cyan" style="top:calc(17% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => x.toFixed(1) + '%'" default="--" />
     </div>
 
-    <!-- gradient under-foot, % -->
-    <div class="sp-t-s p-hc" style="top:calc(40% - 50%e)">GRADE %</div>
-    <div class="sp-d-s f-num p-hc" style="top:calc(50% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="auto" default="0" />
+    <!-- MODE hero — colour flips with effort zone -->
+    <div class="sp-d-l p-hc c-green" style="top:calc(42% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=RUN|1= |2= " default=" " />
+    </div>
+    <div class="sp-d-l p-hc c-orange" style="top:calc(42% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1=P-HIKE|2= " default=" " />
+    </div>
+    <div class="sp-d-l p-hc c-red" style="top:calc(42% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1= |2=HIKE" default=" " />
     </div>
 
-    <!-- HR now / baked ceiling, bpm -->
-    <div class="sp-t-s p-hc" style="top:calc(64% - 50%e)">HR bpm</div>
-    <div class="sp-d-s f-num p-hc" style="top:calc(74% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="auto" default="--" />
+    <!-- motivating shout-line -->
+    <div class="sp-t-m p-hc c-yellow" style="top:calc(60% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=SEND IT!|1=POWER UP!|2=DIG IN!" default="" />
     </div>
 
-    <!-- poles flag (1 → POLES) -->
-    <div class="sp-t-s p-hc" style="top:calc(90% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0=-|1=POLES" default="-" />
+    <!-- heart rate — whole bpm -->
+    <div class="sp-d-s f-num p-hc c-green" style="top:calc(77% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="script x => 'HR ' + x.toFixed(0)" default="HR --" />
+    </div>
+
+    <!-- poles cue -->
+    <div class="sp-t-s p-hc c-yellow" style="top:calc(90% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
   </div>

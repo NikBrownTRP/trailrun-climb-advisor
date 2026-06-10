@@ -204,9 +204,11 @@ function evaluate(input, output) {
     state = candidate;
   }
 
-  output.mode = state === "POWER_HIKE" ? "P-HIKE" : state; // short label for the watch screen
-  output.gradePct = Math.round(grade * 100);
-  output.hrBpm = hrBpm;
+  // numeric mode code (0 RUN / 1 POWER_HIKE / 2 HIKE) — SuuntoPlus outputs must be
+  // numeric; t.html maps it to the coloured word + shout-line.
+  output.mode = (state === "RUN") ? 0 : (state === "POWER_HIKE") ? 1 : 2;
+  output.gradePct = grade * 100; // % full precision; t.html rounds to 0.1
+  output.hrBpm = hrBpm;          // whole bpm; t.html shows integer
   output.targetMax = rec.targetHR.max;
   output.poles = rec.poles ? 1 : 0;
   output.remainAsc = (navState === 3 || navState === 7) ? Math.round(remainAsc) : -1;
