@@ -103,6 +103,7 @@ var NATIVE_MIN_PCT = 0.5; // |native %| must reach this to be trusted; below it 
 var profile;
 var samples; // ring of { dist: m, alt: m } over the grade window
 var state; // current displayed mode: "RUN" | "POWER_HIKE" | "HIKE"
+var prevState; // displayed mode on the previous tick (to detect changes -> haptic alert)
 var candidate; // mode advise currently wants
 var candidateSince; // tick count since candidate first seen
 var hrOverSince; // tick count since HR first exceeded threshold (-1 = not over)
@@ -169,6 +170,7 @@ function onLoad(input, output) {
   profile = loadProfile();
   samples = [];
   state = "RUN";
+  prevState = "RUN"; // start matched so we don't buzz on the very first tick
   candidate = "RUN";
   candidateSince = 0;
   hrOverSince = -1;
@@ -223,6 +225,15 @@ function evaluate(input, output) {
   }
   if (candidate !== state && (ticks - candidateSince) >= T_DWELL) {
     state = candidate;
+  }
+
+  // Haptic alert on a real advice change (e.g. RUN -> HIKE). playIndication plays a sound +
+  // vibration (vibration only if the user enabled it in watch settings). Guarded so it can't
+  // throw in the simulator where the function may be absent. Fires after dwell/hysteresis, so
+  // it only buzzes on a settled change, not on momentary flapping at a band edge.
+  if (state !== prevState) {
+    if (typeof playIndication === "function") playIndication("Interval");
+    prevState = state;
   }
 
   // numeric mode code (0 RUN / 1 POWER_HIKE / 2 HIKE) — SuuntoPlus outputs must be
