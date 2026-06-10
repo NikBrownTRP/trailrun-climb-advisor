@@ -1,8 +1,8 @@
 <!-- Climb Advisor — "the living hillside" (SuuntoPlus uiView DSL).
      Canvas draws the tilting, colour-coded slope (filled wedge + ridge) from the live
-     gradient + mode. The zone word + stats are reliable DSL overlays (canvas text
-     positioning for the rotated word proved unreliable in this runtime — revisit later).
-     Driven by main.js outputs (mode 0/1/2, gradePct, hrBpm, poles) via $.subscribe,
+     gradient + mode, plus the big tilted zone WORD as vector strokes (no large letter font
+     exists; canvas letter glyphs are tofu) and the heart-rate heart+number. Grade / poles /
+     shout are DSL text overlays. Driven by main.js outputs (mode 0/1/2, gradePct, hrBpm, poles) via $.subscribe,
      redrawn with control('#cnv','REFRESH'). Canvas: no gradient/alpha/clearRect — solid
      ARGB hex (#AARRGGBB), fillRect to clear, setTransform to reset. -->
 <uiView
@@ -39,13 +39,63 @@
     }
     function drawHeart(ctx, cx, cy, s, color){
       var r = s * 0.30;            /* lobe radius */
-      var yLobe = cy - s * 0.22;   /* lobe centre line */
-      var tipY = cy + s * 0.72;    /* bottom point */
-      /* triangle (convex) fills the V from the lobe span down to the tip */
-      fillPoly(ctx, [cx - 2*r, yLobe,  cx + 2*r, yLobe,  cx, tipY], color);
-      fillDisc(ctx, cx - r, yLobe, r, color);   /* left lobe */
-      fillDisc(ctx, cx + r, yLobe, r, color);   /* right lobe */
+      var off = r * 0.74;          /* lobe centres OVERLAP (1.48r apart) -> one rounded top with a shallow notch, not two ears */
+      var yLobe = cy - s * 0.16;
+      var tipY = cy + s * 0.60;    /* bottom point (kept short so it reads round, not spiky) */
+      var span = off + r * 0.95;   /* triangle top corners meet the lobes' outer edges */
+      fillPoly(ctx, [cx - span, yLobe,  cx + span, yLobe,  cx, tipY], color);
+      fillDisc(ctx, cx - off, yLobe, r, color);   /* left lobe */
+      fillDisc(ctx, cx + off, yLobe, r, color);   /* right lobe */
     }
+    /* Minimal stroked vector font (cell 0..1, x right / y down) for the only glyphs the
+       words use: RUN / POWER-HIKE / HIKE. The watch has no large LETTER font (f-t-l caps
+       at 28px) and canvas can't render letter glyphs, but it CAN stroke polylines (the slope
+       proves it) — so the hero word is drawn as strokes and tilted to match the slope. */
+    var FONT = {
+      'R': { w:0.78, s:[[0,1, 0,0, 0.62,0, 0.78,0.13, 0.78,0.37, 0.62,0.5, 0,0.5],[0.38,0.5, 0.78,1]] },
+      'U': { w:0.80, s:[[0,0, 0,0.72, 0.14,0.92, 0.4,1, 0.66,0.92, 0.8,0.72, 0.8,0]] },
+      'N': { w:0.82, s:[[0,1, 0,0, 0.82,1, 0.82,0]] },
+      'P': { w:0.78, s:[[0,1, 0,0, 0.62,0, 0.78,0.13, 0.78,0.37, 0.62,0.5, 0,0.5]] },
+      'O': { w:0.86, s:[[0.43,0, 0.68,0.08, 0.86,0.3, 0.86,0.7, 0.68,0.92, 0.43,1, 0.18,0.92, 0,0.7, 0,0.3, 0.18,0.08, 0.43,0]] },
+      'W': { w:1.00, s:[[0,0, 0.2,1, 0.5,0.4, 0.8,1, 1.0,0]] },
+      'E': { w:0.70, s:[[0.7,0, 0,0, 0,1, 0.7,1],[0,0.5, 0.55,0.5]] },
+      'H': { w:0.82, s:[[0,0, 0,1],[0.82,0, 0.82,1],[0,0.5, 0.82,0.5]] },
+      'I': { w:0.16, s:[[0.08,0, 0.08,1]] },
+      'K': { w:0.78, s:[[0,0, 0,1],[0.78,0, 0,0.52, 0.78,1]] },
+      '-': { w:0.55, s:[[0.12,0.5, 0.45,0.5]] }
+    };
+    var GAP = 0.16; /* inter-letter gap, in cell units */
+    var wordCells = function(str){
+      var x = 0;
+      for (var i = 0; i < str.length; i++){
+        var gph = FONT[str.charAt(i)]; if (!gph) continue;
+        x += gph.w + (i < str.length-1 ? GAP : 0);
+      }
+      return x;
+    };
+    /* draw str centred on (cx,cy), cap-height capH px, tilted by rot rad (pts rotated in JS) */
+    var drawWord = function(ctx, str, cx, cy, capH, rot, color){
+      var sc = capH, cosr = Math.cos(rot), sinr = Math.sin(rot);
+      var totalW = wordCells(str) * sc;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(3, capH*0.15);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      var penX = -totalW*0.5;
+      for (var i = 0; i < str.length; i++){
+        var gph = FONT[str.charAt(i)]; if (!gph) continue;
+        for (var si = 0; si < gph.s.length; si++){
+          var pts = gph.s[si];
+          ctx.beginPath();
+          for (var p = 0; p < pts.length; p += 2){
+            var lx = penX + pts[p]*sc, ly = (pts[p+1]-0.5)*sc;
+            var X = cx + (lx*cosr - ly*sinr), Y = cy + (lx*sinr + ly*cosr);
+            if (p === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
+          }
+          ctx.stroke();
+        }
+        penX += (gph.w + GAP)*sc;
+      }
+    };
     function drawScene(ctx){
       var w = ctx.width, h = ctx.height, col = ZCOL[curMode], g = curGrade;
       ctx.setTransform(1,0,0,1,0,0);
@@ -58,17 +108,25 @@
       ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(w,yR);
       ctx.strokeStyle = argb(col,'E6'); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
 
-      /* zone WORD is an HTML overlay (canvas 'monospace numbers' has no letter glyphs on the
-         watch -> rendered as tofu circles). See the colour-coded f-t-l divs below. */
+      /* HERO WORD — big, coloured, tilted to sit on the ridge. Drawn as vector strokes
+         (no letter font exists at this size; canvas letters are tofu). Fit: cap at 30% of
+         the dial height, else shrink to ~82% width so POWER-HIKE stays inside the bezel. */
+      var word = ['RUN','POWER-HIKE','HIKE'][curMode];
+      var ang = Math.atan(g/100) * EXAG;
+      var capH = Math.min(w*0.22, (w*0.80) / wordCells(word));
+      var wcx = w*0.5, wcy = h*0.40;   /* upper-centre: clears grade (top), shout + HR (bottom) */
+      drawWord(ctx, word, wcx, wcy, capH, -ang, col);
 
-      /* heart-rate: heart + whole-bpm number on canvas, side-by-side, centred on ny */
+      /* heart-rate: heart + whole-bpm number on canvas, side-by-side, centred. Sits higher
+         (0.80h) where the round dial is wider so 3-digit HR can't clip at the edge. */
       var hrc = curHr > HR_THRESH ? HR_HI : HR_OK;
       var num = String(Math.round(curHr));
-      var ny = h*0.84;
-      var fs = Math.round(w*0.12);
+      var ny = h*0.80;
+      var fs = Math.round(w*0.105);
       ctx.font = fs + 'px monospace numbers';
       var nw = ctx.measureText(num).width;
-      var hs = fs, gap = fs*0.30;
+      if (!(nw > 0)) nw = num.length * fs * 0.6;       /* guard if measureText fails on hardware */
+      var hs = fs*0.92, gap = fs*0.26;
       var x0 = w*0.5 - (hs + gap + nw)*0.5;
       drawHeart(ctx, x0 + hs*0.5, ny, hs, HEART);     /* heart always red */
       ctx.fillStyle = hrc;                             /* number white -> red over threshold */
@@ -96,21 +154,10 @@
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- MODE word: three colour-coded overlays at one anchor; keyValue blanks the two
-         inactive modes so only the live word shows. f-t-l (28px) is the largest SANS letter
-         font on the watch — Display fonts have no Latin letters, canvas letters are tofu. -->
-    <div class="f-t-l p-hc c-green" style="top:calc(42% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=RUN|1= |2= " default=" " />
-    </div>
-    <div class="f-t-l p-hc c-orange" style="top:calc(42% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1=POWER-HIKE|2= " default=" " />
-    </div>
-    <div class="f-t-l p-hc c-red" style="top:calc(42% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1= |2=HIKE" default=" " />
-    </div>
+    <!-- MODE word is drawn on the canvas as big tilted vector strokes (see drawWord). -->
 
-    <!-- coach shout -->
-    <div class="f-t-l p-hc c-yellow" style="top:calc(69% - 50%e)">
+    <!-- coach shout (small + subordinate to the hero word) -->
+    <div class="f-t-m p-hc c-yellow" style="top:calc(70% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=SEND IT!|1=POWER UP!|2=DIG IN!" default="" />
     </div>
 

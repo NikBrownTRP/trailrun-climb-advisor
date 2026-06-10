@@ -6,3 +6,6 @@ dist/
 .env
 guide.zip
 *.guide.json
+
+.preview/
+.claude/launch.json
