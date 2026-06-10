@@ -1,141 +1,60 @@
-<!-- Climb Advisor — "the living hillside" (SuuntoPlus uiView DSL).
-     Canvas draws the tilting, colour-coded slope (filled wedge + ridge) from the live
-     gradient + mode, plus the big tilted zone WORD as vector strokes (no large letter font
-     exists; canvas letter glyphs are tofu) and the heart-rate heart+number. Grade / poles /
-     shout are DSL text overlays. Driven by main.js outputs (mode 0/1/2, gradePct, hrBpm, poles) via $.subscribe,
-     redrawn with control('#cnv','REFRESH'). Canvas: no gradient/alpha/clearRect — solid
-     ARGB hex (#AARRGGBB), fillRect to clear, setTransform to reset. -->
+<!-- Climb Advisor — native Suunto field layout.
+     Built from standard SuuntoPlus field components (see the extension's example apps):
+       * a full-width coloured BANNER for the mode (like the native cm-fg title field),
+         recoloured green/orange/red at runtime via setStyle;
+       * the GRADE as the big hero number (display digit font renders crisp natively),
+         with a grey cm-mid-style label;
+       * an HR field with the real heart glyph (SuuntoIcon2 U+F101) + bpm, the number
+         switched white -> red over threshold via setStyle.
+     No canvas: every element is a native field. Dynamic styling uses setText/setStyle from
+     the onActivate subscribe callbacks (per the DynamicIcons example).
+     Driven by main.js outputs: mode 0/1/2, gradePct, hrBpm, poles. -->
 <uiView
   onLoad="
-    var EXAG = 1.9, HR_THRESH = 165;
-    var ZCOL = ['#18d17a','#ff8a1f','#ff4d4d'];     /* run / power-hike / hike */
-    var HR_OK = '#e8edf2', HR_HI = '#ff4d4d';
-    var curMode = 0, curGrade = 0, curHr = 0;
-    function argb(hex6, aa){ return '#' + aa + hex6.substring(1); }
-    function slopeYAt(x, w, h, g){
-      var ang = Math.atan(g/100) * EXAG, px = w*0.5, py = h*0.62;
-      return py - (x - px) * Math.tan(ang);
-    }
-    /* The heart is a real icon-font glyph (SuuntoIcon2 U+F101) drawn as an HTML overlay
-       below — the canvas can't render font glyphs (same tofu issue as letters). */
-    /* Minimal stroked vector font (cell 0..1, x right / y down) for the only glyphs the
-       words use: RUN / POWER-HIKE / HIKE. The watch has no large LETTER font (f-t-l caps
-       at 28px) and canvas can't render letter glyphs, but it CAN stroke polylines (the slope
-       proves it) — so the hero word is drawn as strokes and tilted to match the slope. */
-    var FONT = {
-      'R': { w:0.78, s:[[0,1, 0,0, 0.62,0, 0.78,0.13, 0.78,0.37, 0.62,0.5, 0,0.5],[0.38,0.5, 0.78,1]] },
-      'U': { w:0.80, s:[[0,0, 0,0.72, 0.14,0.92, 0.4,1, 0.66,0.92, 0.8,0.72, 0.8,0]] },
-      'N': { w:0.82, s:[[0,1, 0,0, 0.82,1, 0.82,0]] },
-      'P': { w:0.78, s:[[0,1, 0,0, 0.62,0, 0.78,0.13, 0.78,0.37, 0.62,0.5, 0,0.5]] },
-      'O': { w:0.86, s:[[0.43,0, 0.68,0.08, 0.86,0.3, 0.86,0.7, 0.68,0.92, 0.43,1, 0.18,0.92, 0,0.7, 0,0.3, 0.18,0.08, 0.43,0]] },
-      'W': { w:1.00, s:[[0,0, 0.2,1, 0.5,0.4, 0.8,1, 1.0,0]] },
-      'E': { w:0.70, s:[[0.7,0, 0,0, 0,1, 0.7,1],[0,0.5, 0.55,0.5]] },
-      'H': { w:0.82, s:[[0,0, 0,1],[0.82,0, 0.82,1],[0,0.5, 0.82,0.5]] },
-      'I': { w:0.16, s:[[0.08,0, 0.08,1]] },
-      'K': { w:0.78, s:[[0,0, 0,1],[0.78,0, 0,0.52, 0.78,1]] },
-      '-': { w:0.55, s:[[0.12,0.5, 0.45,0.5]] }
-    };
-    var GAP = 0.16; /* inter-letter gap, in cell units */
-    var wordCells = function(str){
-      var x = 0;
-      for (var i = 0; i < str.length; i++){
-        var gph = FONT[str.charAt(i)]; if (!gph) continue;
-        x += gph.w + (i < str.length-1 ? GAP : 0);
-      }
-      return x;
-    };
-    /* draw str centred on (cx,cy), cap-height capH px, tilted by rot rad (pts rotated in JS) */
-    var drawWord = function(ctx, str, cx, cy, capH, rot, color){
-      var sc = capH, cosr = Math.cos(rot), sinr = Math.sin(rot);
-      var totalW = wordCells(str) * sc;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = Math.max(3, capH*0.15);
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      var penX = -totalW*0.5;
-      for (var i = 0; i < str.length; i++){
-        var gph = FONT[str.charAt(i)]; if (!gph) continue;
-        for (var si = 0; si < gph.s.length; si++){
-          var pts = gph.s[si];
-          ctx.beginPath();
-          for (var p = 0; p < pts.length; p += 2){
-            var lx = penX + pts[p]*sc, ly = (pts[p+1]-0.5)*sc;
-            var X = cx + (lx*cosr - ly*sinr), Y = cy + (lx*sinr + ly*cosr);
-            if (p === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);
-          }
-          ctx.stroke();
-        }
-        penX += (gph.w + GAP)*sc;
-      }
-    };
-    function drawScene(ctx){
-      var w = ctx.width, h = ctx.height, col = ZCOL[curMode], g = curGrade;
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
-      /* slope */
-      var yL = slopeYAt(0,w,h,g), yR = slopeYAt(w,w,h,g);
-      ctx.beginPath();
-      ctx.moveTo(0,yL); ctx.lineTo(w,yR); ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
-      ctx.fillStyle = argb(col,'22'); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(w,yR);
-      ctx.strokeStyle = argb(col,'E6'); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
-
-      /* HERO WORD — big, coloured, tilted to sit on the ridge. Drawn as vector strokes
-         (no letter font exists at this size; canvas letters are tofu). Fit: cap at 30% of
-         the dial height, else shrink to ~82% width so POWER-HIKE stays inside the bezel. */
-      var word = ['RUN','POWER-HIKE','HIKE'][curMode];
-      var ang = Math.atan(g/100) * EXAG;
-      var capH = Math.min(w*0.22, (w*0.80) / wordCells(word));
-      var wcx = w*0.5, wcy = h*0.40;   /* upper-centre: clears grade (top), shout + HR (bottom) */
-      drawWord(ctx, word, wcx, wcy, capH, -ang, col);
-
-      /* heart-rate NUMBER on canvas, centred (digits render fine; colour switch is trivial
-         here). The real heart glyph sits just above it as an HTML overlay. */
-      var hrc = curHr > HR_THRESH ? HR_HI : HR_OK;
-      var num = String(Math.round(curHr));
-      var ny = h*0.87;
-      var fs = Math.round(w*0.11);
-      ctx.font = fs + 'px monospace numbers';
-      var nw = ctx.measureText(num).width;
-      if (!(nw > 0)) nw = num.length * fs * 0.6;       /* guard if measureText fails on hardware */
-      ctx.fillStyle = hrc;                             /* white -> red over threshold */
-      ctx.fillText(num, w*0.5 - nw*0.5, ny - fs*0.5);
-    }
+    var WORDS = ['RUN','POWER-HIKE','HIKE'];
+    var ZCOL = ['#18d17a','#ff8a1f','#ff4d4d'];   /* run / power-hike / hike */
+    var HR_THRESH = 165, HR_OK = '#e8edf2', HR_HI = '#ff4d4d';
+    var subMode, subHr;
   "
   onActivate="
-    $.subscribe('Zapp/{zapp_index}/Output/mode', function(v){ curMode = v|0; control('#cnv','REFRESH'); });
-    $.subscribe('Zapp/{zapp_index}/Output/gradePct', function(v){ curGrade = v; control('#cnv','REFRESH'); });
-    $.subscribe('Zapp/{zapp_index}/Output/hrBpm', function(v){ curHr = v; control('#cnv','REFRESH'); });
+    subMode = $.subscribe('Zapp/{zapp_index}/Output/mode', function(v){
+      v = v|0; if (v < 0 || v > 2) v = 0;
+      setText('#word', WORDS[v]);
+      setStyle('#banner', 'background-color', ZCOL[v]);
+    });
+    subHr = $.subscribe('Zapp/{zapp_index}/Output/hrBpm', function(v){
+      setStyle('#hrnum', 'color', (v > HR_THRESH) ? HR_HI : HR_OK);
+    });
+  "
+  onDeactivate="
+    $.unsubscribe(subMode);
+    $.unsubscribe(subHr);
   ">
   <div id="suuntoplus">
 
-    <!-- tilting colour-coded slope -->
-    <object id="cnv" type="canvas" style="position:absolute;left:0;top:0;width:100%;height:100%;"
-            build="ctx => drawScene(ctx)" />
+    <!-- MODE banner: full-width zone-coloured band, colour set at runtime (setStyle). -->
+    <div id="banner" style="width:100%;height:26%;background-color:#18d17a">
+      <div id="word" class="f-t-l p-hc c-black" style="top:calc(64% - 50%e)">RUN</div>
+    </div>
 
-    <!-- grade (cyan, 0.1%) — f-num digits are sans; inline size for a medium readout -->
-    <div class="f-num p-hc c-cyan" style="top:calc(14% - 50%e);font-size:52px;line-height:52px">
+    <!-- GRADE: grey label + big hero number (display digit font). -->
+    <div class="f-t-s p-hc c-grey" style="top:calc(40% - 50%e)">GRADE</div>
+    <div class="f-num p-hc c-white" style="top:calc(56% - 50%e);font-size:92px;line-height:92px">
       <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => x.toFixed(1) + '%'" default="--" />
     </div>
 
-    <!-- poles cue -->
-    <div class="f-t-m p-hc c-yellow" style="top:calc(27% - 50%e)">
+    <!-- POLES cue (only when poles = 1). -->
+    <div class="f-t-s p-hc c-yellow" style="top:calc(70% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- MODE word is drawn on the canvas as big tilted vector strokes (see drawWord). -->
-
-    <!-- coach shout (small + subordinate to the hero word) -->
-    <div class="f-t-m p-hc c-yellow" style="top:calc(63% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=SEND IT!|1=POWER UP!|2=DIG IN!" default="" />
+    <!-- HR field: real heart glyph + bpm, centred. Number colour set at runtime. -->
+    <div class="p-hc sp-vertical-center" style="top:calc(83% - 50%e)">
+      <span class="f-ico c-red" style="font-family:'SuuntoIcon2'">&#xF101;</span>
+      <span id="hrnum" class="f-num c-white" style="padding-left:8px;font-size:42px">
+        <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="script x => '' + Math.round(x)" default="--" />
+      </span>
     </div>
-
-    <!-- heart-rate: real heart glyph (SuuntoIcon2 U+F101) as an overlay, centred above the
-         bpm number (drawn on the canvas). Canvas can't render font glyphs, so the heart
-         lives here. Always red; the number turns red over threshold (on the canvas). -->
-    <div class="f-ico p-hc c-red" style="font-family:'SuuntoIcon2';top:calc(74% - 50%e)">&#xF101;</div>
-
-    <!-- bpm number is drawn on the canvas, centred just below the heart -->
-
 
   </div>
 </uiView>
