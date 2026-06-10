@@ -147,9 +147,12 @@ var loadProfile = function () {
 };
 
 // Smoothed grade (fraction) over the trailing GRADE_WINDOW_M of horizontal distance.
+var SAMPLE_CAP = 40; // hard cap so the ring can't grow unbounded when distance isn't advancing (Duktape OOM guard)
 var smoothedGrade = function (dist, alt) {
   samples.push({ dist: dist, alt: alt });
-  while (samples.length > 1 && (dist - samples[0].dist) > GRADE_WINDOW_M) samples.shift();
+  // prune by window OR by hard count — the count cap is essential: when stationary / no GPS,
+  // dist doesn't advance so the window test never fires and the array would grow until OOM.
+  while (samples.length > 1 && ((dist - samples[0].dist) > GRADE_WINDOW_M || samples.length > SAMPLE_CAP)) samples.shift();
   var a = samples[0];
   var dd = dist - a.dist;
   if (dd < MIN_DDIST) return 0; // not enough horizontal travel yet (slow/stationary)
