@@ -9,7 +9,7 @@
   onLoad="
     var EXAG = 1.9, HR_THRESH = 165;
     var ZCOL = ['#18d17a','#ff8a1f','#ff4d4d'];     /* run / power-hike / hike */
-    var HR_OK = '#e8edf2', HR_HI = '#ff4d4d';
+    var HR_OK = '#18d17a', HR_HI = '#ff4d4d';
     var curMode = 0, curGrade = 0, curHr = 0;
     function argb(hex6, aa){ return '#' + aa + hex6.substring(1); }
     function slopeYAt(x, w, h, g){
@@ -18,14 +18,14 @@
     }
     /* heart silhouette: two lobe-circles + a downward triangle (canvas arcs+fill) */
     function drawHeart(ctx, cx, cy, s, color){
-      var r = s*0.5;
+      var r = s*0.30, ly = cy - s*0.14;     /* lobe radius + upper-lobe centre */
       ctx.fillStyle = color;
-      ctx.beginPath(); ctx.arc(cx - r*0.52, cy - r*0.20, r*0.62, 0, 6.2832); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx + r*0.52, cy - r*0.20, r*0.62, 0, 6.2832); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx - r, ly, r, 0, 6.2832); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + r, ly, r, 0, 6.2832); ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(cx - r*1.06, cy - r*0.02);
-      ctx.lineTo(cx + r*1.06, cy - r*0.02);
-      ctx.lineTo(cx, cy + r*1.25);
+      ctx.moveTo(cx - 2*r, ly + r*0.10);
+      ctx.lineTo(cx + 2*r, ly + r*0.10);
+      ctx.lineTo(cx, cy + s*0.52);
       ctx.closePath(); ctx.fill();
     }
     function drawScene(ctx){
@@ -43,7 +43,7 @@
          side-by-side and vertically centred on ny */
       var hrc = curHr > HR_THRESH ? HR_HI : HR_OK;
       var num = String(Math.round(curHr));
-      var ny = h*0.78;                                    /* shared vertical centre */
+      var ny = h*0.86;                                    /* shared vertical centre */
       var fs = Math.round(w*0.12);                        /* number font size */
       ctx.font = fs + 'px monospace numbers';
       var nw = ctx.measureText(num).width;
@@ -66,29 +66,29 @@
     <object id="cnv" type="canvas" style="position:absolute;left:0;top:0;width:100%;height:100%;"
             build="ctx => drawScene(ctx)" />
 
-    <!-- grade (cyan, 0.1%) -->
-    <div class="sp-d-m f-num p-hc c-cyan" style="top:calc(15% - 50%e)">
+    <!-- grade (cyan, 0.1%) — f-d-xl is a DEFINED sans class (sp-* are undefined -> serif) -->
+    <div class="f-d-xl p-hc c-cyan" style="top:calc(13% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => x.toFixed(1) + '%'" default="--" />
     </div>
 
     <!-- poles cue -->
-    <div class="sp-t-s p-hc c-yellow" style="top:calc(28% - 50%e)">
+    <div class="f-t-m p-hc c-yellow" style="top:calc(27% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- MODE word, colour-coded (three overlapping colour-locked evals) -->
-    <div class="sp-d-l p-hc c-green" style="top:calc(55% - 50%e)">
+    <!-- MODE word, colour-coded sans (three overlapping colour-locked evals) -->
+    <div class="f-d-xxl p-hc c-green" style="top:calc(50% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=RUN|1= |2= " default=" " />
     </div>
-    <div class="sp-d-l p-hc c-orange" style="top:calc(55% - 50%e)">
+    <div class="f-d-xxl p-hc c-orange" style="top:calc(50% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1=P-HIKE|2= " default=" " />
     </div>
-    <div class="sp-d-l p-hc c-red" style="top:calc(55% - 50%e)">
+    <div class="f-d-xxl p-hc c-red" style="top:calc(50% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1= |2=HIKE" default=" " />
     </div>
 
     <!-- coach shout -->
-    <div class="sp-t-m p-hc c-yellow" style="top:calc(72% - 50%e)">
+    <div class="f-t-l p-hc c-yellow" style="top:calc(69% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=SEND IT!|1=POWER UP!|2=DIG IN!" default="" />
     </div>
 
