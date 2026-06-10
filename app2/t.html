@@ -7,13 +7,26 @@
      ARGB hex (#AARRGGBB), fillRect to clear, setTransform to reset. -->
 <uiView
   onLoad="
-    var EXAG = 1.9;
+    var EXAG = 1.9, HR_THRESH = 165;
     var ZCOL = ['#18d17a','#ff8a1f','#ff4d4d'];     /* run / power-hike / hike */
-    var curMode = 0, curGrade = 0;
+    var HR_OK = '#e8edf2', HR_HI = '#ff4d4d';
+    var curMode = 0, curGrade = 0, curHr = 0;
     function argb(hex6, aa){ return '#' + aa + hex6.substring(1); }
     function slopeYAt(x, w, h, g){
       var ang = Math.atan(g/100) * EXAG, px = w*0.5, py = h*0.62;
       return py - (x - px) * Math.tan(ang);
+    }
+    /* heart silhouette: two lobe-circles + a downward triangle (canvas arcs+fill) */
+    function drawHeart(ctx, cx, cy, s, color){
+      var r = s*0.5;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(cx - r*0.52, cy - r*0.20, r*0.62, 0, 6.2832); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + r*0.52, cy - r*0.20, r*0.62, 0, 6.2832); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx - r*1.06, cy - r*0.02);
+      ctx.lineTo(cx + r*1.06, cy - r*0.02);
+      ctx.lineTo(cx, cy + r*1.25);
+      ctx.closePath(); ctx.fill();
     }
     function drawScene(ctx){
       var w = ctx.width, h = ctx.height, col = ZCOL[curMode], g = curGrade;
@@ -25,11 +38,27 @@
       ctx.fillStyle = argb(col,'22'); ctx.fill();         /* ~0.13 alpha ground */
       ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(w,yR);
       ctx.strokeStyle = argb(col,'E6'); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
+
+      /* heart-rate: heart glyph + whole-bpm number, both on canvas (sans, edge-safe),
+         side-by-side and vertically centred on ny */
+      var hrc = curHr > HR_THRESH ? HR_HI : HR_OK;
+      var num = String(Math.round(curHr));
+      var ny = h*0.78;                                    /* shared vertical centre */
+      var fs = Math.round(w*0.12);                        /* number font size */
+      ctx.font = fs + 'px monospace numbers';
+      var nw = ctx.measureText(num).width;
+      var hs = fs*0.92, gap = fs*0.26;
+      var x0 = w*0.5 - (hs + gap + nw)*0.5;
+      drawHeart(ctx, x0 + hs*0.5, ny, hs, hrc);
+      ctx.fillStyle = hrc;
+      /* 'monospace numbers' draws digits DOWNWARD from the y arg, so lift by ~0.5*fs to centre on ny */
+      ctx.fillText(num, x0 + hs + gap, ny - fs*0.5);
     }
   "
   onActivate="
     $.subscribe('Zapp/{zapp_index}/Output/mode', function(v){ curMode = v|0; control('#cnv','REFRESH'); });
     $.subscribe('Zapp/{zapp_index}/Output/gradePct', function(v){ curGrade = v; control('#cnv','REFRESH'); });
+    $.subscribe('Zapp/{zapp_index}/Output/hrBpm', function(v){ curHr = v; control('#cnv','REFRESH'); });
   ">
   <div id="suuntoplus">
 
@@ -59,14 +88,12 @@
     </div>
 
     <!-- coach shout -->
-    <div class="sp-t-m p-hc c-yellow" style="top:calc(78% - 50%e)">
+    <div class="sp-t-m p-hc c-yellow" style="top:calc(72% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=SEND IT!|1=POWER UP!|2=DIG IN!" default="" />
     </div>
 
-    <!-- heart rate (whole bpm) -->
-    <div class="sp-d-s f-num p-hc c-green" style="top:calc(90% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="script x => 'HR ' + x.toFixed(0)" default="HR --" />
-    </div>
+    <!-- heart rate (heart glyph + bpm) is drawn on the canvas -->
+
 
   </div>
 </uiView>
