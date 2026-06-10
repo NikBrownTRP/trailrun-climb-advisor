@@ -94,6 +94,11 @@ var T_DWELL = 4; // s a new mode must persist before we switch the displayed adv
 var T_OVER = 20; // s HR must stay over threshold before biasing toward hiking
 var MIN_DDIST = 12; // m of travel required before computing grade (averages out baro noise; avoids huge values when stationary / not moving)
 var GRADE_CLAMP = 0.45; // physical sanity cap (±45%)
+// Native grade (Activity/Move/-1/DownhillGrade) is reported in PERCENT. Its sign convention
+// is undocumented; this maps it to our fraction with UPHILL POSITIVE. If a real climb shows a
+// NEGATIVE grade on-watch, flip this to +1. (Verify on a known ascent — see docs.)
+var GRADE_SIGN = -1;
+var NATIVE_MIN_PCT = 0.5; // |native %| must reach this to be trusted; below it we use the in-app delta (covers "downhill-only" sources reading ~0 on climbs)
 
 var profile;
 var samples; // ring of { dist: m, alt: m } over the grade window
@@ -180,8 +185,19 @@ function evaluate(input, output) {
   var ascent = num(input.ascent, 0); // /Fusion/Altitude/Ascent, m cumulative
   var navState = num(input.navState, 0); // /Navigation/State (3 on-route, 7 snap)
   var remainAsc = num(input.remainAscent, 0); // route remaining ascent, m (nav only)
+  var dgPct = num(input.dgrade, NaN); // Activity/Move/-1/DownhillGrade/Current, % (native)
 
-  var grade = smoothedGrade(dist, alt);
+  // Grade source: prefer the watch's native grade; fall back to the in-app baro/distance delta
+  // when native is unavailable or reads ~flat (so the app still reacts on climbs if the native
+  // resource turns out to be downhill-only). Both paths land in fraction, then clamp to ±45%.
+  var inGrade = smoothedGrade(dist, alt); // keep the ring fed so the fallback stays current
+  var grade;
+  if (isFinite(dgPct) && Math.abs(dgPct) >= NATIVE_MIN_PCT) {
+    grade = GRADE_SIGN * dgPct / 100;
+  } else {
+    grade = inGrade;
+  }
+  grade = grade < -GRADE_CLAMP ? -GRADE_CLAMP : (grade > GRADE_CLAMP ? GRADE_CLAMP : grade);
 
   // Live "segment": length under-foot is unknown, so use a long sentinel — lets the core's
   // long-hike poles rule engage on sustained steep terrain; race short-climb HR easing

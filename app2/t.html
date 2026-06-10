@@ -16,20 +16,35 @@
       var ang = Math.atan(g/100) * EXAG, px = w*0.5, py = h*0.62;
       return py - (x - px) * Math.tan(ang);
     }
-    /* heart as a filled POLYGON (parametric curve -> lineTo points). The watch canvas
-       renders lineTo/fill (the slope proves it) but NOT arc(), which only drew a dot. */
-    function drawHeart(ctx, cx, cy, s, color){
+    /* Heart from CONVEX pieces only: two filled circle-polygons (lobes) + one filled
+       triangle (the V to the tip). The watch canvas renders convex lineTo/fill (the slope
+       proves it) but NOT arc() (drew a dot) and NOT concave polygon fill (drew empty). */
+    function fillPoly(ctx, pts, color){
       ctx.fillStyle = color;
       ctx.beginPath();
-      var n = 28, k = s/34;
+      ctx.moveTo(pts[0], pts[1]);
+      for (var i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i+1]);
+      ctx.closePath(); ctx.fill();
+    }
+    function fillDisc(ctx, cx, cy, r, color){
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      var n = 16;
       for (var i = 0; i <= n; i++){
         var t = (i/n) * 6.2832;
-        var hx = 16*Math.pow(Math.sin(t),3);
-        var hy = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
-        var px = cx + hx*k, py = cy - hy*k;
+        var px = cx + Math.cos(t)*r, py = cy + Math.sin(t)*r;
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.closePath(); ctx.fill();
+    }
+    function drawHeart(ctx, cx, cy, s, color){
+      var r = s * 0.30;            /* lobe radius */
+      var yLobe = cy - s * 0.22;   /* lobe centre line */
+      var tipY = cy + s * 0.72;    /* bottom point */
+      /* triangle (convex) fills the V from the lobe span down to the tip */
+      fillPoly(ctx, [cx - 2*r, yLobe,  cx + 2*r, yLobe,  cx, tipY], color);
+      fillDisc(ctx, cx - r, yLobe, r, color);   /* left lobe */
+      fillDisc(ctx, cx + r, yLobe, r, color);   /* right lobe */
     }
     function drawScene(ctx){
       var w = ctx.width, h = ctx.height, col = ZCOL[curMode], g = curGrade;
@@ -43,14 +58,8 @@
       ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(w,yR);
       ctx.strokeStyle = argb(col,'E6'); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
 
-      /* zone word ON CANVAS — overlay text fonts can't scale letters past 28px on the watch */
-      var WORDS = ['RUN','POWER-HIKE','HIKE'];
-      var word = WORDS[curMode];
-      var wsz = Math.round(w*0.15);
-      ctx.font = wsz + 'px monospace numbers';
-      var ww = ctx.measureText(word).width;
-      ctx.fillStyle = col;
-      ctx.fillText(word, w*0.5 - ww*0.5, h*0.46 - wsz*0.5);   /* canvas draws text downward from y */
+      /* zone WORD is an HTML overlay (canvas 'monospace numbers' has no letter glyphs on the
+         watch -> rendered as tofu circles). See the colour-coded f-t-l divs below. */
 
       /* heart-rate: heart + whole-bpm number on canvas, side-by-side, centred on ny */
       var hrc = curHr > HR_THRESH ? HR_HI : HR_OK;
@@ -87,7 +96,18 @@
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- MODE word is drawn on the canvas (overlay text fonts cap at 28px for letters) -->
+    <!-- MODE word: three colour-coded overlays at one anchor; keyValue blanks the two
+         inactive modes so only the live word shows. f-t-l (28px) is the largest SANS letter
+         font on the watch — Display fonts have no Latin letters, canvas letters are tofu. -->
+    <div class="f-t-l p-hc c-green" style="top:calc(42% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=RUN|1= |2= " default=" " />
+    </div>
+    <div class="f-t-l p-hc c-orange" style="top:calc(42% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1=POWER-HIKE|2= " default=" " />
+    </div>
+    <div class="f-t-l p-hc c-red" style="top:calc(42% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1= |2=HIKE" default=" " />
+    </div>
 
     <!-- coach shout -->
     <div class="f-t-l p-hc c-yellow" style="top:calc(69% - 50%e)">

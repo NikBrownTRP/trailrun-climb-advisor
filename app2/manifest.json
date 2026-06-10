@@ -10,6 +10,7 @@
   "in": [
     { "name": "distance", "source": "/Activity/Current/Distance", "type": "subscribe" },
     { "name": "altitude", "source": "/Fusion/Altitude", "type": "subscribe" },
+    { "name": "dgrade", "source": "Activity/Move/-1/DownhillGrade/Current", "type": "subscribe" },
     { "name": "hr", "source": "Activity/Move/-1/HeartRate/Current", "type": "subscribe" },
     { "name": "ascent", "source": "/Fusion/Altitude/Ascent", "type": "subscribe" },
     { "name": "navState", "source": "/Navigation/State", "type": "subscribe" },
