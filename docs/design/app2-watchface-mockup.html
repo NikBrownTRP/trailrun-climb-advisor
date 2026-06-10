@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Climb Advisor — Watch Face Design Target</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Semi+Condensed:wght@500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0a0d12;
+    --ink-2: #10141b;
+    --panel: #141a23;
+    --line: #222c39;
+    --fog: #7e8a99;
+    --snow: #eef2f6;
+    --run: #18d17a;     /* green  — RUN  */
+    --hike: #ff8a1f;    /* orange — POWER-HIKE */
+    --grind: #ff4d4d;   /* red    — HIKE */
+    --grade: #19c2b4;   /* cyan   — steepness */
+    --shout: #ffd23f;   /* yellow — coach call */
+    --grid: rgba(126,138,153,.05);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--ink);
+    color: var(--snow);
+    font-family: "Barlow Semi Condensed", system-ui, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* topo backdrop */
+  .topo { position: fixed; inset: 0; z-index: 0; opacity: .45; pointer-events: none; }
+  .topo path { fill: none; stroke: var(--line); stroke-width: 1; }
+  .topo .hot { stroke: rgba(255,138,31,.16); }
+  .grid {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 85% 75% at 50% 42%, #000 35%, transparent 92%);
+  }
+
+  .wrap { position: relative; z-index: 2; max-width: 1080px; margin: 0 auto; padding: clamp(1.4rem,4vw,3rem); }
+
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 1.1rem; }
+  header .eyebrow { font-family: "DM Mono", monospace; font-size: .68rem; letter-spacing: .26em; text-transform: uppercase; color: var(--grade); }
+  header h1 { font-family: "Anton", sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: .01em; font-size: clamp(1.7rem,4.5vw,2.8rem); line-height: .95; margin-top: .25rem; }
+  header .meta { font-family: "DM Mono", monospace; font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--fog); text-align: right; line-height: 1.7; }
+
+  .stage { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: clamp(1.5rem,4vw,3rem); align-items: center; margin-top: clamp(1.5rem,4vw,2.6rem); }
+  @media (max-width: 820px){ .stage { grid-template-columns: 1fr; } }
+
+  /* ---- watch device ---- */
+  .device-col { display: flex; flex-direction: column; align-items: center; gap: 1.6rem; }
+  .device {
+    position: relative; width: min(78vw, 440px); aspect-ratio: 1; border-radius: 50%;
+    background:
+      radial-gradient(circle at 50% 30%, #2a3340, #11151c 62%, #05070a 100%);
+    padding: 14px;
+    box-shadow: 0 30px 80px -24px rgba(0,0,0,.9), inset 0 2px 6px rgba(255,255,255,.05);
+  }
+  .device::before { /* bezel ring */
+    content:""; position:absolute; inset:5px; border-radius:50%;
+    border: 2px solid #2c3644;
+    box-shadow: inset 0 0 0 6px #0a0d12, inset 0 0 30px rgba(0,0,0,.6);
+  }
+  .device::after { /* crown buttons hint */
+    content:""; position:absolute; right:-3px; top:42%; width:7px; height:46px; border-radius:4px;
+    background: linear-gradient(#3a4554,#1b2129); box-shadow:0 0 0 1px #05070a;
+  }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #000; }
+  .screen svg { display: block; width: 100%; height: 100%; }
+
+  .device .caption { font-family:"DM Mono",monospace; font-size:.62rem; letter-spacing:.18em; text-transform:uppercase; color:var(--fog); text-align:center; }
+
+  /* figure pop on change */
+  #figure { transition: opacity .18s ease; transform-box: fill-box; transform-origin: 50% 100%; }
+  #figure.swap { animation: pop .32s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes pop { 0%{transform:scale(.82);opacity:.4} 100%{transform:scale(1);opacity:1} }
+  #slopeGroup { transition: transform .5s cubic-bezier(.16,1,.3,1); }
+  .zone-fill, .zone-stroke, .mode-word, .shout, .grade-val { transition: fill .45s ease, color .45s ease; }
+  /* idle bob */
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+  #figure { animation: bob 1.4s ease-in-out infinite; }
+  body.running #figure { animation-duration: .7s; }
+
+  /* ---- controls panel ---- */
+  .panel { background: linear-gradient(180deg,var(--panel),var(--ink-2)); border:1px solid var(--line); border-radius: 14px; padding: 1.5rem 1.4rem; }
+  .panel h2 { font-family:"DM Mono",monospace; font-size:.64rem; letter-spacing:.22em; text-transform:uppercase; color:var(--fog); margin-bottom:1.2rem; display:flex; align-items:center; gap:.5rem; }
+  .panel h2::before{ content:""; width:7px;height:7px;background:var(--grade);transform:rotate(45deg); }
+
+  .ctl { margin-bottom: 1.4rem; }
+  .ctl label { display:flex; justify-content:space-between; align-items:baseline; font-size:.7rem; letter-spacing:.14em; text-transform:uppercase; color:var(--fog); margin-bottom:.5rem; }
+  .ctl label b { font-family:"DM Mono",monospace; font-size:1rem; color:var(--snow); }
+  input[type=range]{ -webkit-appearance:none; width:100%; height:5px; border-radius:5px; background:#202935; outline:none; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:20px;height:20px;border-radius:50%; background:var(--snow); border:3px solid var(--zone,#fff); cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.5); transition:border-color .3s; }
+
+  .readout { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-top:.4rem; }
+  .chip { background:#0c1118; border:1px solid var(--line); border-radius:9px; padding:.7rem .8rem; }
+  .chip .k { font-size:.58rem; letter-spacing:.16em; text-transform:uppercase; color:var(--fog); }
+  .chip .v { font-family:"DM Mono",monospace; font-size:1.05rem; margin-top:.15rem; color:var(--snow); }
+  .chip.full { grid-column:1/-1; }
+  .chip .v.zone { color: var(--zone); font-weight:500; }
+
+  .btn { width:100%; margin-top:.4rem; cursor:pointer; border:none; background:var(--shout); color:#1a1400; font-family:"DM Mono",monospace; font-weight:500; font-size:.78rem; letter-spacing:.12em; text-transform:uppercase; padding:.95rem; border-radius:10px; transition:transform .2s, box-shadow .2s; }
+  .btn:hover{ transform:translateY(-2px); box-shadow:0 8px 20px -8px var(--shout); }
+  .btn.alt{ background:transparent; color:var(--fog); border:1px solid var(--line); box-shadow:none; }
+  .btn.alt:hover{ color:var(--snow); border-color:var(--fog); transform:none; }
+
+  footer { margin-top: clamp(2rem,5vw,3.5rem); border-top:1px solid var(--line); padding-top:1.2rem; font-family:"DM Mono",monospace; font-size:.66rem; line-height:1.8; letter-spacing:.04em; color:var(--fog); }
+  footer b{ color:var(--snow); }
+  footer .legend{ display:flex; gap:1.4rem; flex-wrap:wrap; margin-bottom:.7rem; }
+  footer .legend span{ display:inline-flex; align-items:center; gap:.45rem; }
+  footer .dot{ width:11px;height:11px;border-radius:3px; }
+</style>
+</head>
+<body>
+  <svg class="topo" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <path d="M-50 660 C 250 620 380 500 600 520 S 1000 450 1260 500" />
+    <path d="M-50 580 C 250 540 400 420 600 450 S 1000 380 1260 430" />
+    <path class="hot" d="M-50 500 C 260 470 410 350 600 380 S 1010 310 1260 350" />
+    <path d="M-50 420 C 270 400 430 290 600 320 S 1020 260 1260 290" />
+    <path d="M-50 340 C 290 330 450 240 600 265 S 1030 215 1260 235" />
+    <path d="M-50 262 C 320 262 470 195 600 215 S 1040 175 1260 185" />
+  </svg>
+  <div class="grid" aria-hidden="true"></div>
+
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="eyebrow">SuuntoPlus Sports App · design target</div>
+        <h1>Climb Advisor — The Living Hillside</h1>
+      </div>
+      <div class="meta">466 × 466 round AMOLED<br/>Race · Vertical 2 · Ocean</div>
+    </header>
+
+    <div class="stage">
+      <div class="device-col">
+        <div class="device">
+          <div class="screen">
+            <svg viewBox="0 0 466 466" id="face">
+              <defs>
+                <radialGradient id="sky" cx="50%" cy="30%" r="80%">
+                  <stop offset="0%" stop-color="#0e1722"/>
+                  <stop offset="100%" stop-color="#000"/>
+                </radialGradient>
+                <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#1a2230"/>
+                  <stop offset="100%" stop-color="#0a0e15"/>
+                </linearGradient>
+              </defs>
+
+              <circle cx="233" cy="233" r="233" fill="url(#sky)"/>
+
+              <!-- grade arc label -->
+              <text id="gradeVal" class="grade-val" x="233" y="62" text-anchor="middle"
+                    font-family="Anton, sans-serif" font-size="40" fill="var(--grade)">0.0%</text>
+              <text x="233" y="84" text-anchor="middle" font-family="DM Mono, monospace"
+                    font-size="13" letter-spacing="3" fill="#5f6c7b">GRADE</text>
+
+              <!-- the scene: tilting slope + figure -->
+              <g id="slopeGroup" transform="rotate(0 233 300)">
+                <!-- hill fill -->
+                <path id="hillFill" class="zone-fill" d="M -120 300 L 586 300 L 586 560 L -120 560 Z" fill="url(#hill)" opacity="0.9"/>
+                <!-- slope crest line -->
+                <line id="crest" class="zone-stroke" x1="-120" y1="300" x2="586" y2="300" stroke="var(--run)" stroke-width="4" stroke-linecap="round"/>
+                <!-- contour ticks on the hill -->
+                <g stroke="#2a3340" stroke-width="2">
+                  <line x1="40" y1="330" x2="120" y2="330"/>
+                  <line x1="150" y1="362" x2="250" y2="362"/>
+                  <line x1="280" y1="396" x2="380" y2="396"/>
+                </g>
+              </g>
+
+              <!-- figure stands on the crest at screen centre (kept upright; slope tilts under it) -->
+              <g id="figureWrap" transform="translate(233 300)">
+                <g id="figure" stroke="var(--run)" stroke-width="9" stroke-linecap="round"
+                   stroke-linejoin="round" fill="none"></g>
+              </g>
+
+              <!-- mode word + shout -->
+              <text id="modeWord" class="mode-word" x="233" y="372" text-anchor="middle"
+                    font-family="Anton, sans-serif" font-size="46" fill="var(--run)">RUN</text>
+              <text id="shout" class="shout" x="233" y="404" text-anchor="middle"
+                    font-family="Barlow Semi Condensed, sans-serif" font-weight="700"
+                    font-size="22" letter-spacing="2" fill="var(--shout)">SEND IT!</text>
+
+              <!-- HR + poles -->
+              <text id="hrVal" x="233" y="436" text-anchor="middle"
+                    font-family="DM Mono, monospace" font-size="22" fill="#cfe">HR 132</text>
+              <text id="polesBadge" x="233" y="455" text-anchor="middle"
+                    font-family="Barlow Semi Condensed, sans-serif" font-weight="700"
+                    font-size="13" letter-spacing="3" fill="var(--shout)" opacity="0"></text>
+            </svg>
+          </div>
+        </div>
+        <div class="caption">Live mock — drag the controls or hit Auto-climb · slope angle is exaggerated ×1.9 for legibility</div>
+      </div>
+
+      <div class="panel">
+        <h2>Live state</h2>
+        <div class="ctl">
+          <label>Gradient <b id="gLbl">0.0%</b></label>
+          <input type="range" id="grade" min="-5" max="42" value="0" step="0.5"/>
+        </div>
+        <div class="ctl">
+          <label>Heart rate <b id="hLbl">132</b></label>
+          <input type="range" id="hr" min="90" max="195" value="132" step="1"/>
+        </div>
+        <div class="readout">
+          <div class="chip"><div class="k">Mode</div><div class="v zone" id="rMode">RUN</div></div>
+          <div class="chip"><div class="k">Poles</div><div class="v" id="rPoles">—</div></div>
+          <div class="chip full"><div class="k">Coach</div><div class="v zone" id="rShout">SEND IT!</div></div>
+        </div>
+        <button class="btn" id="auto">▶ Auto-climb</button>
+        <button class="btn alt" id="reset">Reset</button>
+      </div>
+    </div>
+
+    <footer>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--run)"></span> RUN · runnable grade</span>
+        <span><span class="dot" style="background:var(--hike)"></span> POWER-HIKE · hands-on-thighs</span>
+        <span><span class="dot" style="background:var(--grind)"></span> HIKE · grind / poles</span>
+      </div>
+      <b>Design target for the SuuntoPlus watch DSL.</b> On-watch this becomes a <b>&lt;canvas&gt;</b> scene
+      (ES5, partial Canvas API): the slope is a filled path rotated by the live gradient, the figure a
+      stroked silhouette swapped by mode, all recoloured by effort zone — driven by the same advice values
+      (mode 0/1/2, gradePct, hrBpm, poles) already emitted from main.js. Bands shown use the intermediate
+      profile; the real thresholds come from climb-advisor-core.
+    </footer>
+  </div>
+
+<script>
+(function(){
+  // ---- effort bands (intermediate profile, mirrors climb-advisor-core shape) ----
+  var G_RUN = 14.5, G_HIKE = 24.5, G_POLES = 27.5, THR_HR = 165, L_EXAG = 1.9;
+  var ZONE = { RUN:getVar('--run'), POWER_HIKE:getVar('--hike'), HIKE:getVar('--grind') };
+  var SHOUT = { RUN:'SEND IT!', POWER_HIKE:'POWER UP!', HIKE:'DIG IN!' };
+
+  function getVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+  // ---- figure poses: arrays of segments [x1,y1,x2,y2] in a feet-origin frame (y up = negative) ----
+  // plus head [cx,cy,r]. Stroked silhouette; recoloured per zone.
+  var POSES = {
+    RUN: { head:[22,-138,13], seg:[
+      [12,-122,2,-72],            // torso (forward lean)
+      [12,-120,34,-118],[34,-118,42,-134], // front arm pumping up
+      [12,-118,-8,-106],[-8,-106,-22,-114],// back arm
+      [2,-72,24,-44],[24,-44,16,-6],       // front leg driving (knee high)
+      [2,-72,-18,-50],[-18,-50,-36,-22]    // back leg extended
+    ]},
+    POWER_HIKE: { head:[42,-110,13], seg:[
+      [30,-98,0,-66],            // torso deep forward bend
+      [30,-96,24,-58],           // arm 1 -> front thigh
+      [26,-98,14,-56],           // arm 2 -> front thigh
+      [0,-66,16,-34],[16,-34,12,-4],   // front leg
+      [0,-66,-16,-42],[-16,-42,-28,-8] // back leg
+    ]},
+    HIKE: { head:[10,-142,13], seg:[
+      [6,-126,0,-74],            // torso near-upright
+      [6,-124,-12,-110],[-12,-110,-30,-4],  // left pole arm + pole planted ahead
+      [6,-122,26,-114],[26,-114,38,-8],     // right pole arm + pole planted
+      [0,-74,14,-40],[14,-40,10,-4],        // front leg step up
+      [0,-74,-12,-46],[-12,-46,-22,-10]     // back leg
+    ]}
+  };
+
+  var el = function(id){ return document.getElementById(id); };
+  var gradeS=el('grade'), hrS=el('hr'), fig=el('figure');
+  var state = { mode:'', grade:0, hr:132 };
+
+  function modeFor(g, hr){
+    var m;
+    if (g < G_RUN) m = 'RUN';
+    else if (g < G_HIKE) m = 'POWER_HIKE';
+    else m = 'HIKE';
+    // HR override: sustained over threshold while runnable -> bias to power-hike
+    if (m === 'RUN' && hr > THR_HR) m = 'POWER_HIKE';
+    return m;
+  }
+  function polesFor(g, m){ return g >= G_POLES || m === 'HIKE'; }
+
+  function drawFigure(mode){
+    var p = POSES[mode];
+    var s = '<circle cx="'+p.head[0]+'" cy="'+p.head[1]+'" r="'+p.head[2]+'" fill="currentColor" stroke="none"/>';
+    for (var i=0;i<p.seg.length;i++){ var a=p.seg[i];
+      s += '<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+a[2]+'" y2="'+a[3]+'"/>'; }
+    fig.innerHTML = s;
+  }
+
+  function render(){
+    var g = parseFloat(gradeS.value), hr = parseInt(hrS.value,10);
+    var mode = modeFor(g, hr), poles = polesFor(g, mode), zone = ZONE[mode];
+
+    document.documentElement.style.setProperty('--zone', zone);
+    document.body.classList.toggle('running', mode==='RUN');
+
+    // grade text (0.1%)  + HR (whole bpm)
+    el('gLbl').textContent = g.toFixed(1)+'%';
+    el('hLbl').textContent = hr;
+    el('gradeVal').textContent = g.toFixed(1)+'%';
+    el('hrVal').textContent = 'HR '+hr;
+    el('hrVal').setAttribute('fill', hr>THR_HR ? getVar('--grind') : '#cfe');
+
+    // slope tilt (negative grade tilts the other way), exaggerated, clamped
+    var ang = Math.max(-26, Math.min(40, Math.atan(g/100)*180/Math.PI*L_EXAG));
+    el('slopeGroup').setAttribute('transform','rotate('+(-ang)+' 233 300)');
+
+    // recolour scene
+    el('crest').setAttribute('stroke', zone);
+    el('hillFill').setAttribute('fill', 'url(#hill)');
+    el('modeWord').setAttribute('fill', zone);
+    el('gradeVal').setAttribute('fill', getVar('--grade'));
+    fig.style.color = zone; fig.setAttribute('stroke', zone);
+
+    // mode word + figure (pop on change)
+    el('modeWord').textContent = mode==='POWER_HIKE' ? 'P-HIKE' : mode;
+    el('shout').textContent = SHOUT[mode];
+    if (mode !== state.mode){
+      drawFigure(mode);
+      fig.classList.remove('swap'); void fig.offsetWidth; fig.classList.add('swap');
+    }
+
+    // poles badge
+    var pb = el('polesBadge');
+    pb.textContent = poles ? 'POLES UP' : '';
+    pb.setAttribute('opacity', poles ? '1' : '0');
+
+    // readout chips
+    el('rMode').textContent = el('modeWord').textContent;
+    el('rMode').style.color = zone;
+    el('rShout').textContent = SHOUT[mode];
+    el('rShout').style.color = zone;
+    el('rPoles').textContent = poles ? 'UP' : '—';
+
+    state.mode = mode;
+  }
+
+  gradeS.addEventListener('input', render);
+  hrS.addEventListener('input', render);
+
+  // auto-climb: ramp gradient up then ease back, nudging HR with effort
+  var raf=null, t=0;
+  el('auto').addEventListener('click', function(){
+    if (raf){ cancelAnimationFrame(raf); raf=null; this.textContent='▶ Auto-climb'; return; }
+    this.textContent='⏸ Pause'; t=0;
+    var btn=this;
+    (function step(){
+      t += 0.012;
+      var g = 20 - 22*Math.cos(t);            // 0 → ~42 → 0
+      var hr = 120 + 55*(g/42) + 6*Math.sin(t*7); // effort tracks grade
+      gradeS.value = g.toFixed(1); hrS.value = Math.round(hr);
+      render();
+      if (t < Math.PI){ raf=requestAnimationFrame(step); }
+      else { raf=null; btn.textContent='▶ Auto-climb'; }
+    })();
+  });
+  el('reset').addEventListener('click', function(){
+    if(raf){ cancelAnimationFrame(raf); raf=null; el('auto').textContent='▶ Auto-climb'; }
+    gradeS.value=0; hrS.value=132; render();
+  });
+
+  drawFigure('RUN'); render();
+})();
+</script>
+</body>
+</html>
