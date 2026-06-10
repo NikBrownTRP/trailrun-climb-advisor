@@ -1,39 +1,71 @@
-<!-- Climb Advisor — live coaching screen (SuuntoPlus uiView DSL).
-     Effort-zone colour: RUN=green, P-HIKE=orange, HIKE=red. The mode word is three
-     overlapping colour-locked evals; only the active mode renders a word (others a space).
-     Steepness shown to 0.1%, heart rate as whole bpm. -->
-<uiView>
+<!-- Climb Advisor — "the living hillside" (SuuntoPlus uiView DSL).
+     Canvas draws the tilting, colour-coded slope (filled wedge + ridge) from the live
+     gradient + mode. The zone word + stats are reliable DSL overlays (canvas text
+     positioning for the rotated word proved unreliable in this runtime — revisit later).
+     Driven by main.js outputs (mode 0/1/2, gradePct, hrBpm, poles) via $.subscribe,
+     redrawn with control('#cnv','REFRESH'). Canvas: no gradient/alpha/clearRect — solid
+     ARGB hex (#AARRGGBB), fillRect to clear, setTransform to reset. -->
+<uiView
+  onLoad="
+    var EXAG = 1.9;
+    var ZCOL = ['#18d17a','#ff8a1f','#ff4d4d'];     /* run / power-hike / hike */
+    var curMode = 0, curGrade = 0;
+    function argb(hex6, aa){ return '#' + aa + hex6.substring(1); }
+    function slopeYAt(x, w, h, g){
+      var ang = Math.atan(g/100) * EXAG, px = w*0.5, py = h*0.62;
+      return py - (x - px) * Math.tan(ang);
+    }
+    function drawScene(ctx){
+      var w = ctx.width, h = ctx.height, col = ZCOL[curMode], g = curGrade;
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+      var yL = slopeYAt(0,w,h,g), yR = slopeYAt(w,w,h,g);
+      ctx.beginPath();
+      ctx.moveTo(0,yL); ctx.lineTo(w,yR); ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+      ctx.fillStyle = argb(col,'22'); ctx.fill();         /* ~0.13 alpha ground */
+      ctx.beginPath(); ctx.moveTo(0,yL); ctx.lineTo(w,yR);
+      ctx.strokeStyle = argb(col,'E6'); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.stroke();
+    }
+  "
+  onActivate="
+    $.subscribe('Zapp/{zapp_index}/Output/mode', function(v){ curMode = v|0; control('#cnv','REFRESH'); });
+    $.subscribe('Zapp/{zapp_index}/Output/gradePct', function(v){ curGrade = v; control('#cnv','REFRESH'); });
+  ">
   <div id="suuntoplus">
 
-    <!-- steepness (input) — cyan, 0.1% precision -->
-    <div class="sp-d-m f-num p-hc c-cyan" style="top:calc(17% - 50%e)">
+    <!-- tilting colour-coded slope -->
+    <object id="cnv" type="canvas" style="position:absolute;left:0;top:0;width:100%;height:100%;"
+            build="ctx => drawScene(ctx)" />
+
+    <!-- grade (cyan, 0.1%) -->
+    <div class="sp-d-m f-num p-hc c-cyan" style="top:calc(15% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => x.toFixed(1) + '%'" default="--" />
     </div>
 
-    <!-- MODE hero — colour flips with effort zone -->
-    <div class="sp-d-l p-hc c-green" style="top:calc(42% - 50%e)">
+    <!-- poles cue -->
+    <div class="sp-t-s p-hc c-yellow" style="top:calc(28% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
+    </div>
+
+    <!-- MODE word, colour-coded (three overlapping colour-locked evals) -->
+    <div class="sp-d-l p-hc c-green" style="top:calc(55% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=RUN|1= |2= " default=" " />
     </div>
-    <div class="sp-d-l p-hc c-orange" style="top:calc(42% - 50%e)">
+    <div class="sp-d-l p-hc c-orange" style="top:calc(55% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1=P-HIKE|2= " default=" " />
     </div>
-    <div class="sp-d-l p-hc c-red" style="top:calc(42% - 50%e)">
+    <div class="sp-d-l p-hc c-red" style="top:calc(55% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1= |2=HIKE" default=" " />
     </div>
 
-    <!-- motivating shout-line -->
-    <div class="sp-t-m p-hc c-yellow" style="top:calc(60% - 50%e)">
+    <!-- coach shout -->
+    <div class="sp-t-m p-hc c-yellow" style="top:calc(78% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=SEND IT!|1=POWER UP!|2=DIG IN!" default="" />
     </div>
 
-    <!-- heart rate — whole bpm -->
-    <div class="sp-d-s f-num p-hc c-green" style="top:calc(77% - 50%e)">
+    <!-- heart rate (whole bpm) -->
+    <div class="sp-d-s f-num p-hc c-green" style="top:calc(90% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="script x => 'HR ' + x.toFixed(0)" default="HR --" />
-    </div>
-
-    <!-- poles cue -->
-    <div class="sp-t-s p-hc c-yellow" style="top:calc(90% - 50%e)">
-      <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
   </div>
