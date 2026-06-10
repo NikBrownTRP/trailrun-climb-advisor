@@ -9,7 +9,7 @@
   onLoad="
     var EXAG = 1.9, HR_THRESH = 165;
     var ZCOL = ['#18d17a','#ff8a1f','#ff4d4d'];     /* run / power-hike / hike */
-    var HR_OK = '#18d17a', HR_HI = '#ff4d4d';
+    var HR_OK = '#e8edf2', HR_HI = '#ff4d4d', HEART = '#ff4d4d';
     var curMode = 0, curGrade = 0, curHr = 0;
     function argb(hex6, aa){ return '#' + aa + hex6.substring(1); }
     function slopeYAt(x, w, h, g){
@@ -17,15 +17,20 @@
       return py - (x - px) * Math.tan(ang);
     }
     /* heart silhouette: two lobe-circles + a downward triangle (canvas arcs+fill) */
+    /* heart: two lobe circles + a diamond (rotated square) bottom — cleaner than a triangle */
     function drawHeart(ctx, cx, cy, s, color){
-      var r = s*0.30, ly = cy - s*0.14;     /* lobe radius + upper-lobe centre */
+      var r = s*0.34;                 /* lobe radius */
+      var lx = r*0.78;                /* lobe centre x-offset (overlap so the top notch is small) */
+      var ly = cy - r*0.55;           /* lobe centre y */
       ctx.fillStyle = color;
-      ctx.beginPath(); ctx.arc(cx - r, ly, r, 0, 6.2832); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx + r, ly, r, 0, 6.2832); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx - lx, ly, r, 0, 6.2832); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + lx, ly, r, 0, 6.2832); ctx.fill();
+      /* diamond: top corner between lobes, side corners at lobe centres, bottom = tip */
       ctx.beginPath();
-      ctx.moveTo(cx - 2*r, ly + r*0.10);
-      ctx.lineTo(cx + 2*r, ly + r*0.10);
+      ctx.moveTo(cx, ly - r*0.15);
+      ctx.lineTo(cx - lx - r*0.74, ly + r*0.35);
       ctx.lineTo(cx, cy + s*0.52);
+      ctx.lineTo(cx + lx + r*0.74, ly + r*0.35);
       ctx.closePath(); ctx.fill();
     }
     function drawScene(ctx){
@@ -49,8 +54,8 @@
       var nw = ctx.measureText(num).width;
       var hs = fs*0.92, gap = fs*0.26;
       var x0 = w*0.5 - (hs + gap + nw)*0.5;
-      drawHeart(ctx, x0 + hs*0.5, ny, hs, hrc);
-      ctx.fillStyle = hrc;
+      drawHeart(ctx, x0 + hs*0.5, ny, hs, HEART);   /* heart always red */
+      ctx.fillStyle = hrc;                           /* number white -> red over threshold */
       /* 'monospace numbers' draws digits DOWNWARD from the y arg, so lift by ~0.5*fs to centre on ny */
       ctx.fillText(num, x0 + hs + gap, ny - fs*0.5);
     }
@@ -66,8 +71,8 @@
     <object id="cnv" type="canvas" style="position:absolute;left:0;top:0;width:100%;height:100%;"
             build="ctx => drawScene(ctx)" />
 
-    <!-- grade (cyan, 0.1%) — f-d-xl is a DEFINED sans class (sp-* are undefined -> serif) -->
-    <div class="f-d-xl p-hc c-cyan" style="top:calc(13% - 50%e)">
+    <!-- grade (cyan, 0.1%) — f-num digits are sans; inline size for a medium readout -->
+    <div class="f-num p-hc c-cyan" style="top:calc(14% - 50%e);font-size:52px;line-height:52px">
       <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => x.toFixed(1) + '%'" default="--" />
     </div>
 
@@ -76,14 +81,14 @@
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- MODE word, colour-coded sans (three overlapping colour-locked evals) -->
-    <div class="f-d-xxl p-hc c-green" style="top:calc(50% - 50%e)">
+    <!-- MODE word — f-t-l is SANS (display fonts render serif letters); inline font-size scales it up -->
+    <div class="f-t-l p-hc c-green" style="top:calc(50% - 50%e);font-size:80px;line-height:80px">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=RUN|1= |2= " default=" " />
     </div>
-    <div class="f-d-xxl p-hc c-orange" style="top:calc(50% - 50%e)">
+    <div class="f-t-l p-hc c-orange" style="top:calc(50% - 50%e);font-size:80px;line-height:80px">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1=P-HIKE|2= " default=" " />
     </div>
-    <div class="f-d-xxl p-hc c-red" style="top:calc(50% - 50%e)">
+    <div class="f-t-l p-hc c-red" style="top:calc(50% - 50%e);font-size:80px;line-height:80px">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0= |1= |2=HIKE" default=" " />
     </div>
 
