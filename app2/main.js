@@ -92,7 +92,8 @@ var advise = function (seg, profile, cfg) {
 var GRADE_WINDOW_M = 30; // smooth grade over the last ~30 m of horizontal travel
 var T_DWELL = 4; // s a new mode must persist before we switch the displayed advice
 var T_OVER = 20; // s HR must stay over threshold before biasing toward hiking
-var MIN_DDIST = 1.0; // m, clamp to avoid divide-by-near-zero when slow/stopped
+var MIN_DDIST = 12; // m of travel required before computing grade (averages out baro noise; avoids huge values when stationary / not moving)
+var GRADE_CLAMP = 0.45; // physical sanity cap (±45%)
 
 var profile;
 var samples; // ring of { dist: m, alt: m } over the grade window
@@ -152,7 +153,8 @@ var smoothedGrade = function (dist, alt) {
   var a = samples[0];
   var dd = dist - a.dist;
   if (dd < MIN_DDIST) return 0; // not enough horizontal travel yet (slow/stationary)
-  return (alt - a.alt) / dd;
+  var g = (alt - a.alt) / dd;
+  return g < -GRADE_CLAMP ? -GRADE_CLAMP : (g > GRADE_CLAMP ? GRADE_CLAMP : g); // clamp to ±45%
 };
 
 function onLoad(input, output) {
