@@ -9,44 +9,15 @@
   onLoad="
     var EXAG = 1.9, HR_THRESH = 165;
     var ZCOL = ['#18d17a','#ff8a1f','#ff4d4d'];     /* run / power-hike / hike */
-    var HR_OK = '#e8edf2', HR_HI = '#ff4d4d', HEART = '#ff4d4d';
+    var HR_OK = '#e8edf2', HR_HI = '#ff4d4d';
     var curMode = 0, curGrade = 0, curHr = 0;
     function argb(hex6, aa){ return '#' + aa + hex6.substring(1); }
     function slopeYAt(x, w, h, g){
       var ang = Math.atan(g/100) * EXAG, px = w*0.5, py = h*0.62;
       return py - (x - px) * Math.tan(ang);
     }
-    /* Heart from CONVEX pieces only: two filled circle-polygons (lobes) + one filled
-       triangle (the V to the tip). The watch canvas renders convex lineTo/fill (the slope
-       proves it) but NOT arc() (drew a dot) and NOT concave polygon fill (drew empty). */
-    function fillPoly(ctx, pts, color){
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(pts[0], pts[1]);
-      for (var i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i+1]);
-      ctx.closePath(); ctx.fill();
-    }
-    function fillDisc(ctx, cx, cy, r, color){
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      var n = 16;
-      for (var i = 0; i <= n; i++){
-        var t = (i/n) * 6.2832;
-        var px = cx + Math.cos(t)*r, py = cy + Math.sin(t)*r;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath(); ctx.fill();
-    }
-    function drawHeart(ctx, cx, cy, s, color){
-      var r = s * 0.30;            /* lobe radius */
-      var off = r * 0.74;          /* lobe centres OVERLAP (1.48r apart) -> one rounded top with a shallow notch, not two ears */
-      var yLobe = cy - s * 0.16;
-      var tipY = cy + s * 0.60;    /* bottom point (kept short so it reads round, not spiky) */
-      var span = off + r * 0.95;   /* triangle top corners meet the lobes' outer edges */
-      fillPoly(ctx, [cx - span, yLobe,  cx + span, yLobe,  cx, tipY], color);
-      fillDisc(ctx, cx - off, yLobe, r, color);   /* left lobe */
-      fillDisc(ctx, cx + off, yLobe, r, color);   /* right lobe */
-    }
+    /* The heart is a real icon-font glyph (SuuntoIcon2 U+F101) drawn as an HTML overlay
+       below — the canvas can't render font glyphs (same tofu issue as letters). */
     /* Minimal stroked vector font (cell 0..1, x right / y down) for the only glyphs the
        words use: RUN / POWER-HIKE / HIKE. The watch has no large LETTER font (f-t-l caps
        at 28px) and canvas can't render letter glyphs, but it CAN stroke polylines (the slope
@@ -117,20 +88,17 @@
       var wcx = w*0.5, wcy = h*0.40;   /* upper-centre: clears grade (top), shout + HR (bottom) */
       drawWord(ctx, word, wcx, wcy, capH, -ang, col);
 
-      /* heart-rate: heart + whole-bpm number on canvas, side-by-side, centred. Sits higher
-         (0.80h) where the round dial is wider so 3-digit HR can't clip at the edge. */
+      /* heart-rate NUMBER on canvas, centred (digits render fine; colour switch is trivial
+         here). The real heart glyph sits just above it as an HTML overlay. */
       var hrc = curHr > HR_THRESH ? HR_HI : HR_OK;
       var num = String(Math.round(curHr));
-      var ny = h*0.80;
-      var fs = Math.round(w*0.105);
+      var ny = h*0.87;
+      var fs = Math.round(w*0.11);
       ctx.font = fs + 'px monospace numbers';
       var nw = ctx.measureText(num).width;
       if (!(nw > 0)) nw = num.length * fs * 0.6;       /* guard if measureText fails on hardware */
-      var hs = fs*0.92, gap = fs*0.26;
-      var x0 = w*0.5 - (hs + gap + nw)*0.5;
-      drawHeart(ctx, x0 + hs*0.5, ny, hs, HEART);     /* heart always red */
-      ctx.fillStyle = hrc;                             /* number white -> red over threshold */
-      ctx.fillText(num, x0 + hs + gap, ny - fs*0.5);
+      ctx.fillStyle = hrc;                             /* white -> red over threshold */
+      ctx.fillText(num, w*0.5 - nw*0.5, ny - fs*0.5);
     }
   "
   onActivate="
@@ -157,11 +125,16 @@
     <!-- MODE word is drawn on the canvas as big tilted vector strokes (see drawWord). -->
 
     <!-- coach shout (small + subordinate to the hero word) -->
-    <div class="f-t-m p-hc c-yellow" style="top:calc(70% - 50%e)">
+    <div class="f-t-m p-hc c-yellow" style="top:calc(63% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=SEND IT!|1=POWER UP!|2=DIG IN!" default="" />
     </div>
 
-    <!-- heart rate (heart glyph + bpm) is drawn on the canvas -->
+    <!-- heart-rate: real heart glyph (SuuntoIcon2 U+F101) as an overlay, centred above the
+         bpm number (drawn on the canvas). Canvas can't render font glyphs, so the heart
+         lives here. Always red; the number turns red over threshold (on the canvas). -->
+    <div class="f-ico p-hc c-red" style="font-family:'SuuntoIcon2';top:calc(74% - 50%e)">&#xF101;</div>
+
+    <!-- bpm number is drawn on the canvas, centred just below the heart -->
 
 
   </div>
