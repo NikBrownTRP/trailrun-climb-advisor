@@ -53,11 +53,11 @@
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- HR field: native bottom data-field — flat top with rounded top corners, sides+bottom
-         follow the bezel (alpha-PNG tinted). Blue normally, red over threshold (setStyle on
-         the img colour). The PNG is full-screen; its opaque pixels form the bottom panel. -->
+    <!-- HR field: the exact native data-field shape supplied as an alpha-PNG (hrband-q.png,
+         466x466, transparent bg). Tinted via CSS — blue normally, red over threshold (setStyle
+         on the img colour). Placed full-screen so its baked-in position = on-screen position. -->
     <img id="hrband" class="p-hc" src="hrband-q.png" style="top:calc(50% - 50%e);color:#3F7FF5" />
-    <div class="p-hc sp-vertical-center" style="top:calc(85% - 50%e)">
+    <div class="p-hc sp-vertical-center" style="top:calc(86% - 50%e)">
       <span class="f-ico c-white" style="font-family:'SuuntoIcon2'">&#xF101;</span>
       <span class="f-d-m c-white" style="padding-left:8px">
         <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="script x => '' + Math.round(x)" default="--" />
