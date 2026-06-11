@@ -53,11 +53,11 @@
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- HR field: floating lens/"eye" shape (alpha-PNG tinted), with heart + bpm + unit on top.
-         Lens is blue normally, red over threshold (setStyle on the img colour). The PNG is
-         full-screen; its opaque pixels form the lens in the lower third. -->
+    <!-- HR field: flat-top, curved-bottom panel (alpha-PNG tinted) like the native Suunto
+         bottom data-field. Blue normally, red over threshold (setStyle on the img colour).
+         The PNG is full-screen; its opaque pixels form the shape in the lower third. -->
     <img id="hrband" class="p-hc" src="hrband-q.png" style="top:calc(50% - 50%e);color:#3F7FF5" />
-    <div class="p-hc sp-vertical-center" style="top:calc(80% - 50%e)">
+    <div class="p-hc sp-vertical-center" style="top:calc(78% - 50%e)">
       <span class="f-ico c-white" style="font-family:'SuuntoIcon2'">&#xF101;</span>
       <span class="f-d-m c-white" style="padding-left:8px">
         <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="script x => '' + Math.round(x)" default="--" />
