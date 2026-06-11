@@ -47,8 +47,13 @@
       <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => (Number(x) === Number(x)) ? Number(x).toFixed(1) + '%' : '0.0%'" default="0.0%" />
     </div>
 
-    <!-- POLES cue (only when poles = 1) — above the HR lens. -->
-    <div class="f-t-s p-hc c-yellow" style="top:calc(64% - 50%e)">
+    <!-- motivational shout below the grade number, by mode. -->
+    <div class="f-t-m p-hc c-yellow" style="top:calc(62% - 50%e)">
+      <eval input="Zapp/{zapp_index}/Output/mode" outputFormat="keyValue 0=SEND IT!|1=POWER UP!|2=DIG IN!" default="" />
+    </div>
+
+    <!-- POLES cue (only when poles = 1) — between the shout and the HR field. -->
+    <div class="f-t-s p-hc c-yellow" style="top:calc(70% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
