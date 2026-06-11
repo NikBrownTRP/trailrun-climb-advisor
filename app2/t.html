@@ -48,16 +48,16 @@
       <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => (Number(x) === Number(x)) ? Number(x).toFixed(1) + '%' : '0.0%'" default="0.0%" />
     </div>
 
-    <!-- POLES cue (only when poles = 1). -->
-    <div class="f-t-s p-hc c-yellow" style="top:calc(70% - 50%e)">
+    <!-- POLES cue (only when poles = 1) — above the HR lens. -->
+    <div class="f-t-s p-hc c-yellow" style="top:calc(64% - 50%e)">
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- HR field: native-style curved bottom BAND (alpha-PNG tinted, like the map's HR field),
-         with heart + bpm + unit on top. Band is blue normally, red over threshold (setStyle on
-         the img colour). The PNG is full-screen; its opaque pixels form the band at the bottom. -->
+    <!-- HR field: floating lens/"eye" shape (alpha-PNG tinted), with heart + bpm + unit on top.
+         Lens is blue normally, red over threshold (setStyle on the img colour). The PNG is
+         full-screen; its opaque pixels form the lens in the lower third. -->
     <img id="hrband" class="p-hc" src="hrband-q.png" style="top:calc(50% - 50%e);color:#3F7FF5" />
-    <div class="p-hc sp-vertical-center" style="top:calc(87% - 50%e)">
+    <div class="p-hc sp-vertical-center" style="top:calc(80% - 50%e)">
       <span class="f-ico c-white" style="font-family:'SuuntoIcon2'">&#xF101;</span>
       <span class="f-d-m c-white" style="padding-left:8px">
         <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="script x => '' + Math.round(x)" default="--" />
