@@ -7,6 +7,7 @@
   "usage": "workout",
   "modificationTime": 1749427200,
   "template": [{ "name": "t.html", "displays": ["n", "o", "q"] }],
+  "image": [{ "name": "hrband-q.png", "type": "a64" }],
   "in": [
     { "name": "distance", "source": "/Activity/Current/Distance", "type": "subscribe" },
     { "name": "altitude", "source": "/Fusion/Altitude", "type": "subscribe" },

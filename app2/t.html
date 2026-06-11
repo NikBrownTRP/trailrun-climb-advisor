@@ -13,8 +13,8 @@
   onLoad="
     var WORDS = ['RUN','POWER-HIKE','HIKE'];
     var ZCOL = ['#18d17a','#ff8a1f','#ff4d4d'];   /* run / power-hike / hike */
-    var HR_THRESH = 165, HR_OK = '#e8edf2', HR_HI = '#ff4d4d';
-    var CHIP_OK = '#1c1c1c', CHIP_HI = '#3a1417';   /* chip tints red over threshold */
+    var HR_THRESH = 165;
+    var BAND_OK = '#3F7FF5', BAND_HI = '#ff4d4d';   /* HR band: blue, red over threshold */
     var subMode, subHr;
   "
   onActivate="
@@ -24,9 +24,7 @@
       setStyle('#banner', 'background-color', ZCOL[v]);
     });
     subHr = $.subscribe('Zapp/{zapp_index}/Output/hrBpm', function(v){
-      var hot = v > HR_THRESH;
-      setStyle('#hrnum', 'color', hot ? HR_HI : HR_OK);
-      setStyle('#hrchip', 'background-color', hot ? CHIP_HI : CHIP_OK);
+      setStyle('#hrband', 'color', (v > HR_THRESH) ? BAND_HI : BAND_OK);
     });
   "
   onDeactivate="
@@ -42,7 +40,9 @@
 
     <!-- GRADE: native uphill-grade icon (SuuntoIcon1 U+F262) + big hero number. -->
     <div class="f-ico p-hc c-grey" style="font-family:'SuuntoIcon1';top:calc(40% - 50%e)">&#xF262;</div>
-    <div class="f-num p-hc c-white" style="top:calc(56% - 50%e);font-size:92px;line-height:92px">
+    <!-- f-d-xxxl (85px) is the largest SUPPORTED display-number size; arbitrary inline sizes
+         (e.g. 92px) aren't rasterised and render blank/squares. Display font has digits+symbols. -->
+    <div class="f-d-xxxl p-hc c-white" style="top:calc(55% - 50%e)">
       <!-- null/NaN-safe: always renders a number (never blank), even before the first value
            or when grade can't be computed (e.g. no GPS -> reads 0.0%). -->
       <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => (Number(x) === Number(x)) ? Number(x).toFixed(1) + '%' : '0.0%'" default="0.0%" />
@@ -53,14 +53,16 @@
       <eval input="Zapp/{zapp_index}/Output/poles" outputFormat="keyValue 0= |1=POLES UP" default=" " />
     </div>
 
-    <!-- HR chip: rounded pill at the bottom (like the map's HR field). Heart + bpm on a dark
-         background; chip + number tint red over threshold (set at runtime). border-radius may
-         not render on all watch firmwares -> degrades to a square chip if unsupported. -->
-    <div id="hrchip" class="p-hc sp-vertical-center" style="top:calc(86% - 50%e);background-color:#1c1c1c;border-radius:40px;padding:6px 18px">
-      <span class="f-ico c-red" style="font-family:'SuuntoIcon2'">&#xF101;</span>
-      <span id="hrnum" class="f-num c-white" style="padding-left:8px;font-size:36px">
+    <!-- HR field: native-style curved bottom BAND (alpha-PNG tinted, like the map's HR field),
+         with heart + bpm + unit on top. Band is blue normally, red over threshold (setStyle on
+         the img colour). The PNG is full-screen; its opaque pixels form the band at the bottom. -->
+    <img id="hrband" class="p-hc" src="hrband-q.png" style="top:calc(50% - 50%e);color:#3F7FF5" />
+    <div class="p-hc sp-vertical-center" style="top:calc(87% - 50%e)">
+      <span class="f-ico c-white" style="font-family:'SuuntoIcon2'">&#xF101;</span>
+      <span class="f-d-m c-white" style="padding-left:8px">
         <eval input="Zapp/{zapp_index}/Output/hrBpm" outputFormat="script x => '' + Math.round(x)" default="--" />
       </span>
+      <span class="f-t-s c-white" style="padding-left:5px">bpm</span>
     </div>
 
   </div>
