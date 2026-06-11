@@ -38,11 +38,11 @@
       <div id="word" class="f-t-l p-hc c-black" style="top:calc(64% - 50%e)">RUN</div>
     </div>
 
-    <!-- GRADE: native uphill-grade icon (SuuntoIcon1 U+F262) + big hero number. -->
-    <div class="f-ico p-hc c-grey" style="font-family:'SuuntoIcon1';top:calc(40% - 50%e)">&#xF262;</div>
+    <!-- GRADE: big number in the exact vertical centre (50%); icon sits clear above it. -->
+    <div class="f-ico p-hc c-grey" style="font-family:'SuuntoIcon1';top:calc(32% - 50%e)">&#xF262;</div>
     <!-- f-d-xxxl (85px) is the largest SUPPORTED display-number size; arbitrary inline sizes
          (e.g. 92px) aren't rasterised and render blank/squares. Display font has digits+symbols. -->
-    <div class="f-d-xxxl p-hc c-white" style="top:calc(55% - 50%e)">
+    <div class="f-d-xxxl p-hc c-white" style="top:calc(50% - 50%e)">
       <!-- null/NaN-safe: always renders a number (never blank), even before the first value
            or when grade can't be computed (e.g. no GPS -> reads 0.0%). -->
       <eval input="Zapp/{zapp_index}/Output/gradePct" outputFormat="script x => (Number(x) === Number(x)) ? Number(x).toFixed(1) + '%' : '0.0%'" default="0.0%" />
